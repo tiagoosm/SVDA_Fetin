@@ -1,0 +1,43 @@
+body {
+  background: radial-gradient(circle at center, white, #FAF5EB);
+  margin: 0;
+}
+
+header {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  margin: 40px 20px 0;
+}
+
+.text-container {
+  text-align: center;
+}
+
+.text-container h1 {
+  margin: 0;
+  color: #D59200;
+  font-family: "Nunito", sans-serif;
+  font-weight: 700;
+  letter-spacing: 5vh;
+  font-size: 48px;
+}
+
+.text-container p {
+  margin: 8px 0 0;
+  color: #C5C5C5;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+}
+
+.logout {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 50px;
+  filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(97%) contrast(90%);
+  width: 50px;
+  height: auto;
+  cursor: pointer;
+}
