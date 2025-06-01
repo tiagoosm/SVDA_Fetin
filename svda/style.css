@@ -10,7 +10,7 @@ header
   display: flex;
   justify-content: center;
   padding: 10px;
-  margin: 30px 50px 0;
+  margin: 5vh 5vw 5vh;
 }
 
 .text-container 
@@ -25,7 +25,7 @@ header
   font-family: "Nunito", sans-serif;
   font-weight: 700;
   letter-spacing: 2vh;
-  font-size: 32px;
+  font-size: clamp(24px, 5vw, 32px);
 }
 
 .text-container p
@@ -33,7 +33,7 @@ header
   margin: 5px 0 0;
   color: #C5C5C5;
   font-family: 'Inter', sans-serif;
-  font-size: 12px;
+  font-size: clamp(10px, 2.5vw, 12px);
 }
 
 .logout 
@@ -41,9 +41,9 @@ header
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  right: 50px;
+  right: 5vw;
   filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(97%) contrast(90%);
-  width: 40px;
+  width: clamp(30px, 5vw, 40px);
   height: auto;
   cursor: pointer;
 }
@@ -57,26 +57,30 @@ header
 {
   display: flex;
   justify-content: center;
-  align-items: top;
-  margin-top: 2%;
+  align-items: flex-start;
+  margin-top: 2vh;
+  flex-wrap: wrap;
+  gap: 2vh;
 }
 
 .bull
 {
-  transform: scalex(-1);
-  width: 35%;
+  transform: scaleX(-1);
+  width: clamp(150px, 35%, 700px);
   height: auto;
   filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(97%) contrast(90%);
-  opacity: 20%;
+  opacity: 0.2;
 }
 
 .input-container
 {
   display: flex;
   align-items: center;
-  width: 60%;
-  margin: 80px auto 0;
-  gap: 25px;
+  width: 70%;
+  max-width: 1000px;
+  margin: 8vh auto 0;
+  gap: clamp(10px, 5vw, 25px);
+  flex-wrap: wrap;
 }
 
 .input-text
@@ -84,14 +88,15 @@ header
   flex: 1;
   border: 3px solid #C5C5C5;
   border-radius: 25px;
-  padding: 15px 15px;
+  padding: 15px;
   font-family: "Rubik", sans-serif;
-  color: rgb(65, 65, 65);
+  color: rgb(81, 81, 81);
+  font-size: clamp(12px, 2.5vw, 16px);
 }
 
 .input-text::placeholder
 {
-  font-size: 14px;
+  font-size: clamp(12px, 2.5vw, 14px);
   font-family: "Rubik", sans-serif;
   color: #C5C5C5;
   letter-spacing: 1px;
@@ -104,8 +109,8 @@ header
 
 .send-btn
 {
-  width: 52px;
-  height: 52px;
+  width: clamp(40px, 8vw, 52px);
+  height: clamp(40px, 8vw, 52px);
   border-radius: 50%;
   border: none;
   background-color: #D59200;
@@ -126,7 +131,31 @@ header
 
 .send-icon
 {
-  width: 24px;
-  height: 24px;
+  width: clamp(16px, 4vw, 24px);
+  height: clamp(16px, 4vw, 24px);
   filter: invert(1) brightness(10);
+}
+
+@media (max-width: 480px) 
+{
+  header 
+  {
+    margin: 3vh 3vw 0;
+  }
+
+  .text-container h1 
+  {
+    letter-spacing: 1vh;
+  }
+
+  .logout 
+  {
+    right: 3vw;
+  }
+
+  .input-container
+  {
+    flex-direction: column;
+    gap: 15px;
+  }
 }
