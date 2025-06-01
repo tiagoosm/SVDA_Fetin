@@ -1,43 +1,132 @@
-body {
+body 
+{
   background: radial-gradient(circle at center, white, #FAF5EB);
   margin: 0;
 }
 
-header {
+header 
+{
   position: relative;
   display: flex;
   justify-content: center;
-  padding: 20px;
-  margin: 40px 20px 0;
+  padding: 10px;
+  margin: 30px 50px 0;
 }
 
-.text-container {
+.text-container 
+{
   text-align: center;
 }
 
-.text-container h1 {
+.text-container h1 
+{
   margin: 0;
   color: #D59200;
   font-family: "Nunito", sans-serif;
   font-weight: 700;
-  letter-spacing: 5vh;
-  font-size: 48px;
+  letter-spacing: 2vh;
+  font-size: 32px;
 }
 
-.text-container p {
-  margin: 8px 0 0;
+.text-container p
+{
+  margin: 5px 0 0;
   color: #C5C5C5;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: 12px;
 }
 
-.logout {
+.logout 
+{
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   right: 50px;
   filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(97%) contrast(90%);
-  width: 50px;
+  width: 40px;
   height: auto;
   cursor: pointer;
+}
+
+.logout:hover
+{
+  filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(80%) contrast(90%);
+}
+
+.container
+{
+  display: flex;
+  justify-content: center;
+  align-items: top;
+  margin-top: 2%;
+}
+
+.bull
+{
+  transform: scalex(-1);
+  width: 35%;
+  height: auto;
+  filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(97%) contrast(90%);
+  opacity: 20%;
+}
+
+.input-container
+{
+  display: flex;
+  align-items: center;
+  width: 60%;
+  margin: 80px auto 0;
+  gap: 25px;
+}
+
+.input-text
+{
+  flex: 1;
+  border: 3px solid #C5C5C5;
+  border-radius: 25px;
+  padding: 15px 15px;
+  font-family: "Rubik", sans-serif;
+  color: rgb(65, 65, 65);
+}
+
+.input-text::placeholder
+{
+  font-size: 14px;
+  font-family: "Rubik", sans-serif;
+  color: #C5C5C5;
+  letter-spacing: 1px;
+}
+
+.input-text:focus {
+  outline: none;
+  border-color: #C5C5C5; 
+}
+
+.send-btn
+{
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background-color: #D59200;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  transition: transform 0.3s ease;
+  transform-origin: center;
+}
+
+.send-btn:hover
+{
+  transform: scale(1.1);
+  background-color: #c28500;
+}
+
+.send-icon
+{
+  width: 24px;
+  height: 24px;
+  filter: invert(1) brightness(10);
 }
