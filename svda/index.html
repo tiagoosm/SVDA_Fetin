@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Home</title>
   <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Rubik&display=swap" rel="stylesheet" />
 </head>
 <body>
@@ -15,11 +14,14 @@
       <h1>SVDA</h1>
       <p>Sistema de Verificação de Dados Alimentícios</p>
     </div>
-    <img src="logout_icon.png" alt="direita" class="logout" />
+    <img src="back_icon.png" alt="direita" class="back-btn" />
   </header>
 
-  <div class="container">
-    <img src="Bull Icon.png" alt="icon" class="bull" />
+  <div class="wrapper">
+    <div class="container">
+      <img src="Bull Icon.png" alt="icon" class="bull" />
+    </div>
+    <div class="chat-container"></div>
   </div>
 
   <div class="input-container">
@@ -29,81 +31,7 @@
     </button>
   </div>
 
-  <!-- Container para o chat -->
-  <div id="chat-container" style="
-    max-width: 700px;
-    margin: 20px auto;
-    padding: 10px;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    overflow-y: auto;
-    height: 300px;
-  ">
-  </div>
+<script src="script.js"></script>
 
-  <script>
-    const input = document.querySelector('.input-text');
-    const sendBtn = document.querySelector('.send-btn');
-    const chatContainer = document.getElementById('chat-container');
-
-    function addMessage(text, sender) {
-      const p = document.createElement('p');
-      p.textContent = `${sender}: ${text}`;
-      p.style.padding = '8px';
-      p.style.borderRadius = '6px';
-      p.style.margin = '6px 0';
-      if (sender === 'Você') {
-        p.style.backgroundColor = '#D59200';
-        p.style.color = '#fff';
-        p.style.textAlign = 'right';
-      } else if(sender === 'IA') {
-        p.style.backgroundColor = '#F0F0F0';
-        p.style.color = '#333';
-        p.style.textAlign = 'left';
-      } else {
-        p.style.backgroundColor = '#ffe0b2';
-        p.style.color = '#333';
-        p.style.textAlign = 'center';
-        p.style.fontStyle = 'italic';
-      }
-      chatContainer.appendChild(p);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    sendBtn.addEventListener('click', async () => {
-      const mensagem = input.value.trim();
-      if (!mensagem) return;
-
-      addMessage(mensagem, 'Você');
-      input.value = "";
-
-      try {
-        const response = await fetch('http://127.0.0.1:5000/mensagem', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mensagem, session_id: "usuario_teste" })
-        });
-
-        if (!response.ok) {
-          addMessage("Erro ao receber resposta do servidor.", "Sistema");
-          return;
-        }
-
-        const data = await response.json();
-        addMessage(data.resposta, 'SVDA');
-      } catch (error) {
-        addMessage("Erro ao conectar com o servidor.", 'Sistema');
-        console.error(error);
-      }
-    });
-
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        sendBtn.click();
-      }
-    });
-  </script>
 </body>
 </html>

@@ -22,7 +22,7 @@ header
 {
   margin: 0;
   color: #D59200;
-  font-family: "Nunito", sans-serif;
+  font-family: "Lora", sans-serif;
   font-weight: 700;
   letter-spacing: 2vh;
   font-size: clamp(24px, 5vw, 32px);
@@ -36,25 +36,29 @@ header
   font-size: clamp(10px, 2.5vw, 12px);
 }
 
-.logout 
+.back-btn 
 {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  right: 5vw;
+  right: 75vw;
   filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(97%) contrast(90%);
   width: clamp(30px, 5vw, 40px);
   height: auto;
   cursor: pointer;
 }
 
-.logout:hover
+.back-btn:hover
 {
   filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(80%) contrast(90%);
 }
 
-.container
-{
+.wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.container {
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -63,13 +67,27 @@ header
   gap: 2vh;
 }
 
-.bull
-{
+.bull {
   transform: scaleX(-1);
   width: clamp(150px, 35%, 700px);
   height: auto;
   filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(97%) contrast(90%);
   opacity: 0.2;
+}
+
+.chat-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 65%;
+  max-width: 1000px;
+  height: 100%;
+  background-color: transparent;
+  display: flex;
+  z-index: 10;
+  justify-content: center;
+  align-items: center;
 }
 
 .input-container
@@ -80,7 +98,7 @@ header
   max-width: 1000px;
   margin: 8vh auto 0;
   gap: clamp(10px, 5vw, 25px);
-  flex-wrap: wrap;
+  margin-bottom: 20px;
 }
 
 .input-text
@@ -92,6 +110,7 @@ header
   font-family: "Rubik", sans-serif;
   color: rgb(81, 81, 81);
   font-size: clamp(12px, 2.5vw, 16px);
+  background-color: transparent;
 }
 
 .input-text::placeholder
@@ -113,7 +132,7 @@ header
   height: clamp(40px, 8vw, 52px);
   border-radius: 50%;
   border: none;
-  background-color: #D59200;
+  background-color: #006400;
   cursor: pointer;
   display: flex;
   justify-content: center;
@@ -126,7 +145,7 @@ header
 .send-btn:hover
 {
   transform: scale(1.1);
-  background-color: #c28500;
+  background-color: #006400;
 }
 
 .send-icon
@@ -136,26 +155,40 @@ header
   filter: invert(1) brightness(10);
 }
 
-@media (max-width: 480px) 
-{
-  header 
-  {
-    margin: 3vh 3vw 0;
-  }
+.message {
+  max-width: 70%;
+  padding: 10px 14px;
+  margin: 6px 0;
+  border-radius: 16px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 1rem;
+  word-wrap: break-word;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+}
 
-  .text-container h1 
-  {
-    letter-spacing: 1vh;
-  }
+.message-sent {
+  background-color: #d59200;
+  color: white;
+  margin-left: auto;  
+  text-align: right;
+  border-bottom-right-radius: 4px;
+}
 
-  .logout 
-  {
-    right: 3vw;
-  }
+.message-received {
+  background-color: #f0f0f0;
+  color: #333;
+  margin-right: auto; 
+  text-align: left;
+  border-bottom-left-radius: 4px;
+}
 
-  .input-container
-  {
-    flex-direction: column;
-    gap: 15px;
-  }
+.message-system {
+  background-color: #ffe0b2;
+  color: #333;
+  text-align: center;
+  font-style: italic;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 8px;
 }
