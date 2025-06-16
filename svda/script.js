@@ -13,12 +13,14 @@ function addMessage(text, sender) {
   if (sender === 'Você') {
     messageWrapper.classList.add('sent');
     p.classList.add('message-sent');
-  } else if (sender === 'IA') {
+  } 
+  else if (sender === 'IA') {
     messageWrapper.classList.add('received');
     p.classList.add('message-received');
-  } else {
+  } 
+  else {
+    messageWrapper.classList.add('system');
     p.classList.add('message-system');
-    messageWrapper.style.justifyContent = 'center';
   }
 
   messageWrapper.appendChild(p);
