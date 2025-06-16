@@ -67,7 +67,7 @@ To run the project locally:
 ---
 
 ## 🧩 Project Architecture
-- The SVDA system is composed of three main layers:
+The SVDA system is composed of three main layers:
 
 - Frontend: Built using HTML, CSS, and JavaScript to deliver a responsive and user-friendly interface.
 
