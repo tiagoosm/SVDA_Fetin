@@ -23,12 +23,11 @@
 
 ## 🚀 Features
 
-- **User-Friendly Interface**: Clean design for easy navigation.  
-- **Registration Form**: Simple and validated structure for data entry.  
-- **Data Listing**: Dynamic table displaying submitted records.  
-- **Real-Time Feedback**: Instant form validations.  
-- **Responsive Design**: Works on both desktop and mobile devices.  
-
+- **User-friendly interface**: Clean design to facilitate navigation for small producers.
+- **Interactive chatbox**: Simple and direct communication for recording and querying bovine feed data.
+- **Data visualization**: Dynamic display of information provided by the user.
+- **Real-time feedback**: Instant responses to ensure clarity and accuracy of data.
+- **Responsive design**: Works on both desktop and mobile devices, making it easy to use in the field.
 ---
 
 ## 🧰 Technologies Used
@@ -69,8 +68,8 @@ To run the project locally:
 ## 🧩 Project Architecture
 The SVDA system is composed of three main layers:
 
-- Frontend: Built using HTML, CSS, and JavaScript to deliver a responsive and user-friendly interface.
+- **Frontend**: Built using HTML, CSS, and JavaScript to deliver a responsive and user-friendly interface.
 
-- Backend (Flask): Handles HTTP requests, data validation, and routing logic.
+- **Backend (Flask)**: Handles HTTP requests, data validation, and routing logic.
 
-- AI Layer (Langchain Module): Manages natural language processing and data interpretation logic when invoked.
+- **AI Layer (Langchain Module)**: Manages natural language processing and data interpretation logic when invoked.
