@@ -82,12 +82,57 @@ header
   transform: translate(-50%, -50%);
   width: 65%;
   max-width: 1000px;
-  height: 100%;
+  height: 60vh;
   background-color: transparent;
   display: flex;
+  flex-direction: column;   
+  justify-content: flex-end;
+  overflow-y: auto;         
+  box-sizing: border-box;   
   z-index: 10;
-  justify-content: center;
-  align-items: center;
+  scroll-behavior: smooth;
+  padding: 10px;
+}
+
+.message-wrapper {
+  display: flex;
+  width: 100%;
+}
+
+.message-wrapper.sent {
+  justify-content: flex-end;
+}
+
+.message-wrapper.received {
+  justify-content: flex-start;
+}
+
+.message-wrapper.system {
+  justify-content: start;
+}
+
+.message {
+  max-width: 70%;
+  padding: 10px 14px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 1rem;
+  word-wrap: break-word;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+}
+
+.message-sent {
+  background-color: #9c9c9c;
+  color: white;
+  text-align: right;
+  border-radius: 20px;
+}
+
+.message-system {
+  background-color: #707070;
+  color: white;
+  text-align: center;
+  font-style: italic;
+  border-radius: 20px;
 }
 
 .input-container
@@ -145,7 +190,7 @@ header
 .send-btn:hover
 {
   transform: scale(1.1);
-  background-color: #006400;
+  background-color: #005100;
 }
 
 .send-icon
@@ -153,42 +198,4 @@ header
   width: clamp(16px, 4vw, 24px);
   height: clamp(16px, 4vw, 24px);
   filter: invert(1) brightness(10);
-}
-
-.message {
-  max-width: 70%;
-  padding: 10px 14px;
-  margin: 6px 0;
-  border-radius: 16px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 1rem;
-  word-wrap: break-word;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
-}
-
-.message-sent {
-  background-color: #d59200;
-  color: white;
-  margin-left: auto;  
-  text-align: right;
-  border-bottom-right-radius: 4px;
-}
-
-.message-received {
-  background-color: #f0f0f0;
-  color: #333;
-  margin-right: auto; 
-  text-align: left;
-  border-bottom-left-radius: 4px;
-}
-
-.message-system {
-  background-color: #ffe0b2;
-  color: #333;
-  text-align: center;
-  font-style: italic;
-  max-width: 100%;
-  margin-left: auto;
-  margin-right: auto;
-  border-radius: 8px;
 }
