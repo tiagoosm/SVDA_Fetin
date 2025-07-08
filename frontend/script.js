@@ -2,6 +2,10 @@ const input = document.querySelector('.input-text');
 const sendBtn = document.querySelector('.send-btn');
 const chatContainer = document.querySelector('.chat-container');
 
+const messagesDiv = document.createElement('div');
+messagesDiv.classList.add('messages');
+chatContainer.appendChild(messagesDiv);
+
 function addMessage(text, sender) {
   const messageWrapper = document.createElement('div');
   messageWrapper.classList.add('message-wrapper');
@@ -14,7 +18,7 @@ function addMessage(text, sender) {
     messageWrapper.classList.add('sent');
     p.classList.add('message-sent');
   } 
-  else if (sender === 'IA') {
+  else if (sender === 'IA' || sender === 'SVDA') {
     messageWrapper.classList.add('received');
     p.classList.add('message-received');
   } 
@@ -24,8 +28,7 @@ function addMessage(text, sender) {
   }
 
   messageWrapper.appendChild(p);
-  chatContainer.appendChild(messageWrapper);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  messagesDiv.prepend(messageWrapper);
 }
 
 sendBtn.addEventListener('click', async () => {
