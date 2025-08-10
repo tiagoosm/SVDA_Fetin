@@ -1,3 +1,195 @@
+/* ---------------Página de Login--------------- */
+
+.container-login {
+    display: flex;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100vh;
+    gap: 10vh;
+}
+
+.left-panel {
+    width: 30%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+}
+
+.bull-image {
+    position: absolute;
+    filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(97%) contrast(90%);
+    opacity: 0.2;
+    width: 100%;
+    height: auto;
+    transform: scaleX(-1);
+    z-index: 0;
+}
+
+.impact-text {
+  position: absolute;
+    font-size: 26px;
+    font-weight: normal;
+    color: #000;
+    line-height: 1.4;
+    z-index: 1;
+    animation: fadeSlide 1.2s ease forwards;
+}
+
+.highlight {
+    color: #000000;
+    font-weight: bold;
+    animation: none;
+    opacity: 1;
+}
+
+@keyframes fadeSlide {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-card {
+    width: 20%;
+    height: auto;
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 5vh
+}
+
+.logo-icon {
+    width: 30px;
+    margin-right: 10px;
+}
+
+.logo-text {
+    font-size: 24px;
+    font-weight: bold;
+    color: #D59200;
+    letter-spacing: 2px;
+}
+
+form input {
+    width: 90%;
+    padding: 12px;
+    margin-bottom: 3vh;
+    border-bottom: 3px solid #999;
+    border-top: 0;
+    border-left: 0;
+    border-right: 0;
+    font-size: 13px;
+    font-family: "lora", sans-serif;
+}
+
+input:focus{
+  outline: none;
+  box-shadow: none;
+  border-bottom: 3px solid #4d4d4d;
+}
+
+.btn-primary {
+    width: 100%;
+    margin-top: 3vh;
+    padding: 10px;
+    background-color: #006400;
+    color: white;
+    border: none;
+    border-radius: 24px;
+    font-size: 15px;
+    font-family: "Inter", sans-serif;
+    font-weight: bold;
+    cursor: pointer;
+    margin-bottom: 1.5vh;
+}
+
+.btn-primary:hover {
+    background-color: #1B5E20;
+}
+
+.forgot {
+    width: 50%;
+    font-size: 14px;
+    font-weight: bold;
+    color: #707070;
+    text-decoration: none;
+}
+
+.forgot:hover{
+  color: #4d4d4d;
+  text-decoration: underline;
+}
+
+.divider {
+  text-align: center;
+  margin: 3vh 0;
+  position: relative;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 45%;
+  height: 1.5px;
+  background: #9c9c9c;
+  opacity: 80%;
+}
+
+.divider::before {
+  left: 0;
+}
+
+.divider::after {
+  right: 0;
+}
+
+.divider span {
+  background: white;
+  color: #9c9c9c;
+  position: relative;
+  z-index: 1;
+  opacity: 80%;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+}
+
+.btn-secondary {
+    width: 100%;
+    margin-top: 2vh;
+    padding: 10px;
+    background-color: #D59200;
+    color: white;
+    border: none;
+    border-radius: 24px;
+    font-size: 15px;
+    font-family: "Inter", sans-serif;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background-color: #b27400;
+}
+
+/* ---------------Página Inicial--------------- */
+
 body 
 {
   background: radial-gradient(circle at center, white, #FAF5EB);
