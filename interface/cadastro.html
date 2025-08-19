@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="icon" type="image/png" href="assets/Icon.png"/>
+  <title>Cadastre-se</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+    <img src="assets/BotaoBack.png" alt="direita" class="back-btn-register" onclick="window.location.href='login.html'"/>
+    </header>
+
+    <div class="register-card">
+
+    <div class="container">
+      <img src="assets/Bull.png" alt="icon" class="bull" />
+    </div>
+
+    <h2 class="register-title">Crie uma conta</h2>
+
+    <form class="form-register">
+      <div class="register-form">
+        <div class="register-column">
+          <input type="text" placeholder="Nome Completo" required>
+          <input type="email" placeholder="E-mail" required>
+          <input type="password" placeholder="Crie uma Senha" required>
+        </div>
+        <div class="register-column">
+          <select required>
+            <option disabled selected>Localidade da Fazenda</option>
+            <option>Minas Gerais</option>
+            <option>Goiás</option>
+            <option>Mato Grosso</option>
+          </select>
+          <select required>
+            <option disabled selected>Tamanho do Rebanho</option>
+            <option>Pequeno</option>
+            <option>Médio</option>
+            <option>Grande</option>
+          </select>
+          <select required>
+            <option disabled selected>Tipo de Gado</option>
+            <option>Leite</option>
+            <option>Corte</option>
+            <option>Misto</option>
+          </select>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <button type="submit" class="register-btn">Cadastrar</button>
+
+</body>
+</html>
