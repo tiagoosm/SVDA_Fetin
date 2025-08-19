@@ -1,0 +1,6 @@
+- Nome
+- E-mail
+- Senha
+- Localidade 
+- Tamanho do rebanho
+- Tipo de gado

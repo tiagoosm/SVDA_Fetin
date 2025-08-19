@@ -1,3 +1,95 @@
+/* -------- Página de Cadastro -------- */
+
+.back-btn-register{
+  position: absolute;
+  transform: translateY(-50%);
+  filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(97%) contrast(90%);
+  width: clamp(30px, 5vw, 40px);
+  height: auto;
+  cursor: pointer;
+  margin-top: 3vh;
+  right: 90%;
+}
+
+.back-btn-register:hover
+{
+  filter: brightness(0) saturate(100%) invert(80%) sepia(3%) saturate(0%) hue-rotate(0deg) brightness(80%) contrast(90%);
+}
+
+.register-card {
+  text-align: center;
+  height: auto;
+  position: flex;
+}
+
+.register-title {
+  font-family: "Lora", sans-serif;
+  font-size: 32px;
+  font-weight: 600;
+  margin-top: 7vh;
+  margin-bottom: 15vh;
+  color: #D59200;
+  letter-spacing: 2px;
+}
+
+.register-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 5vw;
+}
+
+.register-form input,
+.register-form select {
+  width: 50%;
+  padding: 1%;
+  margin-bottom: 10vh;
+  border-bottom: 3px solid #999;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  font-size: 12px;
+  font-family: "lora", sans-serif;
+  font-weight: bold;
+  background: transparent;
+}
+
+.register-form input::placeholder,
+.register-form select::placeholder {
+  color: #b4b4b4; 
+  opacity: 80%; 
+}
+
+.register-column select{
+  color: #b4b4b4;
+  opacity: 80%;
+}
+
+.register-form input:focus,
+.register-form select:focus {
+  outline: none;
+  box-shadow: none;
+  border-bottom: 3px solid #4d4d4d;
+}
+
+.register-btn {
+  padding: 12px;
+  background-color: #006400;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  width: 20vw;
+  display: block;         
+  margin: 5vh auto 0;
+}
+
+.register-btn:hover {
+  background-color: #1B5E20;
+}
+
 /* ---------------Página de Login--------------- */
 
 .container-login {
