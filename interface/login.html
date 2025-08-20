@@ -8,36 +8,69 @@
 <title>Entrar</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="style.css">
-
 </head>
 <body>
 
 <div class="container-login">
-    <div class="left-panel">
-        <img src="assets/Bull.png" alt="Touro símbolo" class="bull-image">
-        <h1 class="impact-text">
-            <span class="highlight">Tecnologia</span> que alimenta dados,<br>
-            <span class="highlight">inteligência</span> que fortalece o campo.
-        </h1>
-    </div>
+  <div class="left-panel">
+    <img src="assets/Bull.png" alt="Touro símbolo" class="bull-image">
+    <h1 class="impact-text">
+      <span class="highlight">Tecnologia</span> que alimenta dados,<br>
+      <span class="highlight">inteligência</span> que fortalece o campo.
+    </h1>
+  </div>
 
-    <div class="login-card">
-        <div class="logo">
-            <img src="assets/Icon.png" alt="SVDA Logo" class="logo-icon">
-            <span class="logo-text">SVDA</span>
-        </div>
-        <form>
-            <input type="email" placeholder="E-mail" required>
-            <input type="password" placeholder="Senha" required>
-            <button type="submit" class="btn-primary" onclick="window.location.href='home.html'">Entrar</button>
-            <a href="#" class="forgot">Esqueceu a senha?</a>
-            <div class="divider"><span>Ou</span></div>
-            <button type="button" class="btn-secondary" onclick="window.location.href='cadastro.html'">Cadastre-se</button>
-        </form>
+  <div class="login-card">
+    <div class="logo">
+      <img src="assets/Icon.png" alt="SVDA Logo" class="logo-icon">
+      <span class="logo-text">SVDA</span>
     </div>
+    <form id="form-login">
+      <input id="email" type="email" placeholder="E-mail" required>
+      <input id="senha" type="password" placeholder="Senha" required>
+      <button type="submit" class="btn-primary">Entrar</button>
+      <a href="#" class="forgot">Esqueceu a senha?</a>
+      <div class="divider"><span>Ou</span></div>
+      <button type="button" class="btn-secondary" onclick="window.location.href='cadastro.html'">Cadastre-se</button>
+    </form>
+  </div>
 </div>
+
+<script>
+  const form = document.getElementById('form-login');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById('email').value.trim();
+    const senha = document.getElementById('senha').value;
+
+    try {
+      const resp = await fetch('http://localhost:5000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, senha })
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        alert(data.erro || 'Erro ao entrar');
+        return;
+      }
+
+      // guarda session_id para enviar junto nas mensagens ao chatbot
+      localStorage.setItem('session_id', data.session_id);
+
+      // segue para a home
+      window.location.href = 'home.html';
+    } catch (err) {
+      console.error(err);
+      alert('Falha ao conectar com o servidor.');
+    }
+  });
+</script>
 
 </body>
 </html>
