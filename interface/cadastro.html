@@ -8,43 +8,41 @@
   <title>Cadastre-se</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap" rel="stylesheet">
-
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
+  <header>
     <img src="assets/BotaoBack.png" alt="direita" class="back-btn-register" onclick="window.location.href='login.html'"/>
-    </header>
+  </header>
 
-    <div class="register-card">
-
+  <div class="register-card">
     <div class="container">
       <img src="assets/Bull.png" alt="icon" class="bull" />
     </div>
 
     <h2 class="register-title">Crie uma conta</h2>
 
-    <form class="form-register">
+    <form class="form-register" id="form-register">
       <div class="register-form">
         <div class="register-column">
-          <input type="text" placeholder="Nome Completo" required>
-          <input type="email" placeholder="E-mail" required>
-          <input type="password" placeholder="Crie uma Senha" required>
+          <input id="nome" type="text" placeholder="Nome Completo" required>
+          <input id="email" type="email" placeholder="E-mail" required>
+          <input id="senha" type="password" placeholder="Crie uma Senha" required>
         </div>
         <div class="register-column">
-          <select required>
+          <select id="localidade" required>
             <option disabled selected>Localidade da Fazenda</option>
             <option>Minas Gerais</option>
             <option>Goiás</option>
             <option>Mato Grosso</option>
           </select>
-          <select required>
+          <select id="tamanho" required>
             <option disabled selected>Tamanho do Rebanho</option>
             <option>Pequeno</option>
             <option>Médio</option>
             <option>Grande</option>
           </select>
-          <select required>
+          <select id="tipo" required>
             <option disabled selected>Tipo de Gado</option>
             <option>Leite</option>
             <option>Corte</option>
@@ -52,10 +50,39 @@
           </select>
         </div>
       </div>
+
+      <button type="submit" class="register-btn">Cadastrar</button>
     </form>
   </div>
 
-  <button type="submit" class="register-btn">Cadastrar</button>
+  <script>
+    const form = document.getElementById('form-register');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
+      const email = document.getElementById('email').value.trim();
+      const senha = document.getElementById('senha').value;
+
+      try {
+        const resp = await fetch('http://localhost:5000/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, senha })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          alert(data.erro || 'Erro ao cadastrar');
+          return;
+        }
+
+        alert('Cadastro realizado com sucesso! Faça login para continuar.');
+        window.location.href = 'login.html';
+      } catch (err) {
+        console.error(err);
+        alert('Falha ao conectar com o servidor.');
+      }
+    });
+  </script>
 </body>
 </html>
