@@ -38,11 +38,15 @@ sendBtn.addEventListener('click', async () => {
   addMessage(mensagem, 'Você');
   input.value = "";
 
+  // pega o session_id salvo após login
+  const sessionId = localStorage.getItem('session_id') || null;
+
   try {
     const response = await fetch('http://127.0.0.1:5000/mensagem', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mensagem, session_id: "usuario_teste" })
+      // não precisa credenciais nesta rota; usa session_id no body
+      body: JSON.stringify({ mensagem, session_id: sessionId })
     });
 
     if (!response.ok) {
@@ -65,6 +69,14 @@ input.addEventListener('keydown', (e) => {
   }
 });
 
-document.querySelector('.back-btn').addEventListener('click', function() {
+document.querySelector('.back-btn')?.addEventListener('click', function() {
+  // ao voltar, opcionalmente sair
   window.location.href = 'login.html';
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  addMessage(
+    "Olá! Nós somos os Serviços de Dados Alimentícios, SVDA. Estamos aqui para ajudar você com: - Formular dietas equilibradas para o seu gado. - Reduzir custos e melhorar o desempenho. - Dar orientações de manejo em época de estiagem. - Apoiar na saúde e tratamento do gado. - Responder dúvidas do dia a dia da fazenda. Como podemos ajudar você hoje?",
+    'SVDA'
+  );
 });
