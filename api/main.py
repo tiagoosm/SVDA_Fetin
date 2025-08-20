@@ -11,110 +11,89 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 
-# Carregar variáveis de ambiente
+# -----------------------------
+# CONFIGURAÇÃO INICIAL
+# -----------------------------
+
+# Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
 
 # Inicializar Flask
 app = Flask(__name__)
+
+# Chave secreta usada para criar sessões seguras
 app.secret_key = 'sua_chave_secreta_aqui'
-CORS(app)  # libera todas as origens
+
+# Habilitar CORS para permitir comunicação com frontend de outros domínios
+CORS(app, supports_credentials=True)
+
+# Permite enviar caracteres especiais (acentos) no JSON
 app.config['JSON_AS_ASCII'] = False
 
-# Criação do banco de dados 
+# -----------------------------
+# BANCO DE DADOS
+# -----------------------------
+
+# Função para criar o banco de dados e tabelas caso não existam
 def init_db():
+    # Conectar ao banco SQLite (arquivo 'banco.db')
     conn = sqlite3.connect('banco.db')
     cursor = conn.cursor()
 
+    # Criar tabela de usuários
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL
+            id INTEGER PRIMARY KEY AUTOINCREMENT,  -- ID único do usuário
+            email TEXT UNIQUE NOT NULL,            -- Email do usuário, único
+            senha TEXT NOT NULL                     -- Senha criptografada
         )
     ''')
 
+    # Criar tabela de histórico de perguntas/respostas
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS historico (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER,
-            pergunta TEXT,
-            resposta TEXT,
-            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+            id INTEGER PRIMARY KEY AUTOINCREMENT,    -- ID único do registro
+            usuario_id INTEGER,                      -- ID do usuário que enviou a pergunta
+            pergunta TEXT,                           -- Pergunta do usuário
+            resposta TEXT,                           -- Resposta da IA
+            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,-- Data/hora da pergunta
+            FOREIGN KEY(usuario_id) REFERENCES usuarios(id) -- Relaciona com a tabela usuarios
         )
     ''')
 
+    # Salvar alterações
     conn.commit()
     conn.close()
 
+# Executa a função de inicialização antes de cada requisição
 @app.before_request
 def setup():
     init_db()
 
-# Template do prompt
-template = """Você é um especialista em nutrição e manejo de bovinos, utilizando BR-Corte, NASEM e CQBAL 4.0 para formular dietas eficientes, equilibrando nutrientes, desempenho e custo.
+# -----------------------------
+# CONFIGURAÇÃO DA IA
+# -----------------------------
 
-Seu objetivo é perguntar ao produtor o passo a passo, coletando dados para gerar no final:  
-- Um plano alimentar completo  
-- Uma tabela nutricional detalhada, porém apresentada de forma conversacional, enviando cada dado nutricional um a um.  
-- Quantidades recomendadas de cada ingrediente por refeição e por dia  
-- Sugestão de insumos alternativos  
-- Estimativa de desempenho e custo diário  
+# Template de instruções para a IA
+template = """Você é uma inteligência artificial na qual ajuda produtores de gado, em várias situações na fazenda, mas principalmente na dieta do gado.
+ Sua base técnica é o BR-Corte, NASEM e CQBAL 4.0, mas você também pode ajudar o trabalhador rural em outros pontos do dia a dia, como manejo em época de estiagem, saúde e tratamento do gado, orientações práticas de manejo de pasto e organização da fazenda.
 
-Instruções:  
-1. Faça UMA pergunta de cada vez, na ordem definida abaixo.  
-2. Aguarde a resposta antes de passar para a próxima.  
-3. Armazene todas as respostas internamente.  
-4. Após a pergunta nº 18, pergunte:  
-   "Deseja adicionar algum insumo ou ingrediente extra na dieta? (ex.: melaço, ureia, casca de soja, caroço de algodão)"  
-5. Quando todas as respostas forem coletadas, apresente apenas estes próximos dados nutricionais da seguinte forma, em mensagens pequenas e separadas, como se estivesse conversando, sem aguardar resposta:  
+Sua comunicação deve ser curta, simples e direta, sem formalidade exagerada, pois você fala com pecuaristas e trabalhadores do campo.
+Formular dietas equilibradas.
+Ajudar a reduzir custos e melhorar desempenho.
+Dar orientações de manejo em estiagem.
+Apoiar na saúde e tratamento do gado.
+Responder dúvidas do dia a dia da fazenda.
 
-   - Estimativa de ganho de peso ou produção de leite, mostrando cálculos resumidos.  
-   - Custo estimado por cabeça/dia e por lote, explicando como foi calculado.  
-   - Recomendações para ajustes e monitoramento contínuo.  
+Sempre que responder:
 
-   Em seguida, informe as quantidades recomendadas de cada alimento (silagem, concentrados, suplementos) por refeição e por dia, também de forma segmentada, em mensagens pequenas, uma a uma, com explicações claras, neste momento você não ira aguarda uma resposta.  
+Vá direto ao ponto.
 
-   Depois, forneça sugestões de insumos alternativos, caso o produtor deseje, também em mensagens pequenas e separadas, neste momento você não ira aguarda uma resposta.  
+Sugira soluções práticas e, quando possível, traga opções alternativas. Como estaremos trabalhando com pessoas de diversas camadas sociais, como grandes produtores, até produtor de subsistência
 
-6. Após exibir esses primeiros dados, pergunte:  
-   "Deseja mais informações sobre as estimativas e sugestões feitas?"  
+Se precisar de mais informações, pergunte de forma simples totas as informações que você precise para conseguir fazer a melhor dieta para o trabalhador ou melhor informação.
 
-   - Se a resposta for "sim", exiba os dados nutricionais completos em mensagens pequenas e separadas, como se estivesse conversando, e sem aguardar resposta, na seguinte ordem:  
-     - Estimativa de ganho de peso ou produção de leite, mostrando cálculos resumidos.  
-     - Custo estimado por cabeça/dia e por lote, explicando como foi calculado.  
-     - Recomendações para ajustes e monitoramento contínuo.  
-     - Para cada categoria do rebanho:  
-       * Exigência de proteína bruta (PB), com explicação do valor.  
-       * Exigência de energia metabolizável (EM), detalhando cálculo ou fonte.  
-       * Nível recomendado de fibra detergente neutro (FDN).  
-       * Níveis de minerais importantes (Ca, P, Na etc.).  
-
-   - Se a resposta for "não", agradeça pela escolha do SVDA e encerre a conversa.  
-
-Ordem das perguntas:  
-1. Quantos animais você possui atualmente?  
-2. Quais são as categorias e fases produtivas? (ex.: 50 bois de engorda, 20 vacas em lactação)  
-3. Qual o tipo de sistema produtivo? (corte, leite, cria, recria, engorda, misto)  
-4. Qual o principal objetivo no momento? (ganho de peso, produção de leite, redução de custos etc.)  
-5. Onde fica sua propriedade? (estado e município)  
-6. Qual a principal pastagem utilizada? (espécie e estágio de maturação)  
-7. Quais volumosos você tem disponíveis? (silagem – tipo e qualidade, feno, resíduos agrícolas)  
-8. Quais concentrados você possui? (milho, farelo de soja, polpa cítrica etc.)  
-9. Você utiliza algum suplemento mineral atualmente? (proteinado, mineral simples, núcleo etc.)  
-10. Qual o peso vivo médio de cada categoria? (em kg)  
-11. Qual o ganho médio diário atual? (kg/dia)  
-12. Qual o escore de condição corporal médio? (escala 1 a 9)  
-13. Qual a taxa de lotação média? (UA/ha)  
-14. Quando foi o último manejo sanitário ou vermifugação?  
-15. Você enfrenta seca prolongada? (meses do ano)  
-16. Falta volumoso em alguma época do ano? (sim/não e quando)  
-17. Qual o custo máximo por cabeça/dia ou o orçamento mensal disponível para alimentação?  
-18. Existe algum problema específico que deseja resolver? (baixo ganho de peso, baixa produção de leite etc.)  
-19. Deseja adicionar algum insumo ou ingrediente extra na dieta? (ex.: melaço, ureia, casca de soja, caroço de algodão)  
-
-Comece agora perguntando a primeira questão da lista.
-Para a resposta final fale somente as informações básicas como a quantidade de alimento que deverá ser dada ao animal para que um produtor que não tenha tanto conhecimemento entenda perfeitamente a resposta e o ajude a ter menos disperdicío de ração.
+Evite palavras técnicas complicadas, mas mantenha precisão técnica.
 
 Histórico da conversa:
 {history}
@@ -122,28 +101,33 @@ Histórico da conversa:
 Entrada do usuário:
 {input}"""
 
-# Definir prompt formatado
+# Criar prompt para a IA usando histórico de mensagens
 prompt = ChatPromptTemplate.from_messages([
-    ("system", template),
-    MessagesPlaceholder(variable_name="history"),
-    ("human", "{input}")
+    ("system", template),  # Mensagem do sistema definindo comportamento da IA
+    MessagesPlaceholder(variable_name="history"),  # Placeholder para histórico
+    ("human", "{input}")  # Entrada do usuário
 ])
 
-# Modelo da OpenAI
-llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini")
+# Configurar modelo de IA
+llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini")  # temperatura controla criatividade
 
-# Cadeia de execução
+# Cadeia que envia o prompt para a IA
 chain = prompt | llm
 
-# Armazenamento de histórico por sessão
+# -----------------------------
+# HISTÓRICO DE SESSÕES
+# -----------------------------
+
+# Armazenamento de histórico de cada sessão (usuário)
 store = {}
 
+# Função para pegar histórico de uma sessão
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
     if session_id not in store:
-        store[session_id] = ChatMessageHistory()
+        store[session_id] = ChatMessageHistory()  # cria novo histórico se não existir
     return store[session_id]
 
-# Encadeamento com histórico
+# Cadeia de execução com histórico
 chain_with_history = RunnableWithMessageHistory(
     chain,
     get_session_history,
@@ -151,13 +135,16 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="history"
 )
 
-# --- ROTAS ---
+# -----------------------------
+# ROTAS DA APLICAÇÃO
+# -----------------------------
 
+# Página inicial
 @app.route("/")
 def home():
-    return "Servidor rodando! Acesse a rota /mensagem via POST."
+    return "Servidor rodando!"
 
-# Rota de registro
+# Rota para registrar novo usuário
 @app.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -167,6 +154,7 @@ def register():
     if not email or not senha:
         return jsonify({"erro": "Email e senha são obrigatórios"}), 400
 
+    # Cria hash da senha (não guardar senha em texto puro)
     senha_hash = generate_password_hash(senha)
 
     try:
@@ -180,7 +168,7 @@ def register():
     finally:
         conn.close()
 
-# Rota de login
+# Rota para login do usuário
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -193,16 +181,16 @@ def login():
     conn = sqlite3.connect('banco.db')
     cursor = conn.cursor()
     cursor.execute('SELECT id, senha FROM usuarios WHERE email = ?', (email,))
-    user = cursor.fetchone()
+    user = cursor.fetchone()  # retorna uma tupla (id, senha)
     conn.close()
 
     if user and check_password_hash(user[1], senha):
-        session['usuario_id'] = user[0]
+        session['usuario_id'] = user[0]  # cria sessão do usuário
         return jsonify({"mensagem": "Login realizado com sucesso", "session_id": str(user[0])})
     else:
         return jsonify({"erro": "Credenciais inválidas"}), 401
 
-# Rota para conversar com a IA e salvar histórico
+# Rota para enviar mensagem à IA e salvar histórico
 @app.route("/mensagem", methods=["POST"])
 def responder():
     data = request.get_json()
@@ -213,15 +201,15 @@ def responder():
         return jsonify({"erro": "mensagem não fornecida"}), 400
 
     if not session_id:
-        # Se não informar session_id, não salva histórico no banco
         session_id = "usuario_padrao"
 
+    # Envia pergunta para IA considerando histórico da sessão
     resposta = chain_with_history.invoke(
         {"input": pergunta_usuario},
         config={"configurable": {"session_id": session_id}}
     )
 
-    # Tenta salvar no banco se session_id for um número válido (usuário logado)
+    # Tenta salvar pergunta/resposta no banco de dados
     try:
         usuario_id = int(session_id)
         conn = sqlite3.connect('banco.db')
@@ -233,7 +221,7 @@ def responder():
         conn.commit()
         conn.close()
     except:
-        pass  # se não for número válido, não salva
+        pass  # caso não seja possível salvar, ignora
 
     return jsonify({"resposta": resposta.content})
 
@@ -255,11 +243,12 @@ def historico():
     historico = cursor.fetchall()
     conn.close()
 
-    # Retorna JSON com o histórico
     return jsonify({"historico": [
         {"pergunta": p, "resposta": r, "data": d} for p, r, d in historico
     ]})
 
-# Rodar app
+# -----------------------------
+# EXECUÇÃO DO SERVIDOR
+# -----------------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0")  # host 0.0.0.0 permite acesso pela rede
