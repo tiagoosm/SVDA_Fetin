@@ -16,7 +16,7 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 # -----------------------------
 load_dotenv()
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "chave_default_insegura")
+app.secret_key = "sua_chave_secreta_aqui"
 CORS(app, supports_credentials=True)
 app.config["JSON_AS_ASCII"] = False
 
@@ -51,6 +51,7 @@ init_db()
 # -----------------------------
 # CONFIGURAÇÃO DA IA
 # -----------------------------
+
 template = """ seu nome é assistente SVDA.
 Você é uma inteligência artificial especialista em pecuária, criada para apoiar produtores de gado de corte e leite, em propriedades grandes, médias ou pequenas.
 Seu foco principal é nutrição, saúde e manejo, mas você também deve orientar em organização da fazenda e dúvidas do dia a dia.
@@ -281,6 +282,8 @@ Deseja também orientações sobre o calendário de vacinação?
 “Preciso de dieta barata só para manter as vacas até a chuva chegar.”
 
 “Quero saber quais vacinas são obrigatórias para bezerros.”
+
+Histórico da conversa:
 {history}
 
 Entrada do usuário:
@@ -295,26 +298,11 @@ prompt = ChatPromptTemplate.from_messages([
 llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini")
 chain = prompt | llm
 
-# -----------------------------
-# HISTÓRICO COM BANCO DE DADOS
-# -----------------------------
+store = {}
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    history = ChatMessageHistory()
-    try:
-        conn = sqlite3.connect("banco.db")
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT pergunta, resposta FROM historico
-            WHERE usuario_id = ?
-            ORDER BY data ASC
-        """, (session_id,))
-        for pergunta, resposta in cursor.fetchall():
-            history.add_user_message(pergunta)
-            history.add_ai_message(resposta)
-        conn.close()
-    except Exception as e:
-        print("Erro ao carregar histórico:", e)
-    return history
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
 
 chain_with_history = RunnableWithMessageHistory(
     chain,
@@ -367,30 +355,28 @@ def login():
 
     if user and check_password_hash(user[1], senha):
         session["usuario_id"] = user[0]
-        return jsonify({"mensagem": "Login realizado com sucesso"})
+        return jsonify({"mensagem": "Login realizado com sucesso", "session_id": str(user[0])})
     else:
         return jsonify({"erro": "Credenciais inválidas"}), 401
 
 @app.route("/mensagem", methods=["POST"])
 def responder():
-    if "usuario_id" not in session:
-        return jsonify({"erro": "Usuário não autenticado"}), 401
-
     data = request.get_json()
     pergunta_usuario = data.get("mensagem")
-    usuario_id = session["usuario_id"]
+    session_id = data.get("session_id") or "usuario_padrao"
 
     if not pergunta_usuario:
         return jsonify({"erro": "mensagem não fornecida"}), 400
 
     resposta = chain_with_history.invoke(
         {"input": pergunta_usuario},
-        config={"configurable": {"session_id": str(usuario_id)}}
+        config={"configurable": {"session_id": session_id}}
     )
 
-    texto_resposta = resposta.content
+    texto_resposta = resposta.content  
 
     try:
+        usuario_id = int(session_id)
         conn = sqlite3.connect("banco.db")
         cursor = conn.cursor()
         cursor.execute("""
@@ -399,17 +385,16 @@ def responder():
         """, (usuario_id, pergunta_usuario, texto_resposta))
         conn.commit()
         conn.close()
-    except Exception as e:
-        print("Erro ao salvar histórico:", e)
+    except:
+        pass
 
     return jsonify({"resposta": texto_resposta})
 
 @app.route("/historico", methods=["GET"])
 def historico():
-    if "usuario_id" not in session:
+    usuario_id = session.get("usuario_id")
+    if not usuario_id:
         return jsonify({"erro": "Usuário não autenticado"}), 401
-
-    usuario_id = session["usuario_id"]
 
     conn = sqlite3.connect("banco.db")
     cursor = conn.cursor()
@@ -430,4 +415,4 @@ def historico():
     })
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0")
+    app.run(debug=True, host="0.0.0.0")
