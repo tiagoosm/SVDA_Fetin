@@ -1,17 +1,14 @@
 const input = document.querySelector('.input-text');
 const sendBtn = document.querySelector('.send-btn');
 const chatContainer = document.querySelector('.chat-container');
-
-const messagesDiv = document.createElement('div');
-messagesDiv.classList.add('messages');
-chatContainer.appendChild(messagesDiv);
+const messagesDiv = document.querySelector('.messages');
 
 function addMessage(text, sender) {
   const messageWrapper = document.createElement('div');
   messageWrapper.classList.add('message-wrapper');
 
   const p = document.createElement('p');
-  p.textContent = text;
+  p.innerHTML = marked.parse(text); // Markdown -> HTML
   p.classList.add('message');
 
   if (sender === 'Você') {
@@ -38,14 +35,12 @@ sendBtn.addEventListener('click', async () => {
   addMessage(mensagem, 'Você');
   input.value = "";
 
-  // pega o session_id salvo após login
   const sessionId = localStorage.getItem('session_id') || null;
 
   try {
     const response = await fetch('http://127.0.0.1:5000/mensagem', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // não precisa credenciais nesta rota; usa session_id no body
       body: JSON.stringify({ mensagem, session_id: sessionId })
     });
 
@@ -69,14 +64,30 @@ input.addEventListener('keydown', (e) => {
   }
 });
 
-document.querySelector('.back-btn')?.addEventListener('click', function() {
-  // ao voltar, opcionalmente sair
+document.querySelector('.back-btn')?.addEventListener('click', () => {
   window.location.href = 'login.html';
 });
 
 window.addEventListener('DOMContentLoaded', () => {
   addMessage(
-    "Olá! Nós somos os Serviços de Dados Alimentícios, SVDA. Estamos aqui para ajudar você com: - Formular dietas equilibradas para o seu gado. - Reduzir custos e melhorar o desempenho. - Dar orientações de manejo em época de estiagem. - Apoiar na saúde e tratamento do gado. - Responder dúvidas do dia a dia da fazenda. Como podemos ajudar você hoje?",
+    `👋 Olá, seja bem-vindo ao Serviço de Dados Alimentícios – SVDA!
+
+Aqui o seu rebanho vem em primeiro lugar. Nosso objetivo é deixar a sua vida no campo mais simples e produtiva, oferecendo apoio em tudo o que você precisa:
+
+🐂 Formular dietas equilibradas e econômicas para o seu gado
+
+💰 Reduzir custos e aumentar o desempenho do rebanho
+
+🌱 Orientar no manejo durante a seca ou nas águas
+
+💉 Apoiar na saúde e vacinação do gado
+
+📌 Responder dúvidas práticas do dia a dia da fazenda
+
+✨ Estamos prontos para caminhar junto com você — do pequeno ao grande produtor.
+
+👉 Como podemos ajudar você hoje?`,
     'SVDA'
   );
 });
+
