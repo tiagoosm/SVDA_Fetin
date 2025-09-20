@@ -4,7 +4,6 @@ from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -16,7 +15,6 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 # -----------------------------
 load_dotenv()
 app = Flask(__name__)
-app.secret_key = "sua_chave_secreta_aqui"
 CORS(app, supports_credentials=True)
 app.config["JSON_AS_ASCII"] = False
 
