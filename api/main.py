@@ -1,11 +1,11 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, session, redirect
+from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
-
-from langchain_openai import ChatOpenAI 
+from datetime import datetime
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -14,120 +14,308 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 # -----------------------------
 # CONFIGURAÇÃO INICIAL
 # -----------------------------
-
-# Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
-
-# Inicializar Flask
 app = Flask(__name__)
-
-# Chave secreta usada para criar sessões seguras
-app.secret_key = 'sua_chave_secreta_aqui'
-
-# Habilitar CORS para permitir comunicação com frontend de outros domínios
+app.secret_key = os.getenv("SECRET_KEY", "chave_default_insegura")
 CORS(app, supports_credentials=True)
-
-# Permite enviar caracteres especiais (acentos) no JSON
-app.config['JSON_AS_ASCII'] = False
+app.config["JSON_AS_ASCII"] = False
 
 # -----------------------------
 # BANCO DE DADOS
 # -----------------------------
-
-# Função para criar o banco de dados e tabelas caso não existam
 def init_db():
-    # Conectar ao banco SQLite (arquivo 'banco.db')
-    conn = sqlite3.connect('banco.db')
+    conn = sqlite3.connect("banco.db")
     cursor = conn.cursor()
-
-    # Criar tabela de usuários
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,  -- ID único do usuário
-            email TEXT UNIQUE NOT NULL,            -- Email do usuário, único
-            senha TEXT NOT NULL                     -- Senha criptografada
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            senha TEXT NOT NULL
         )
-    ''')
-
-    # Criar tabela de histórico de perguntas/respostas
-    cursor.execute('''
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS historico (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,    -- ID único do registro
-            usuario_id INTEGER,                      -- ID do usuário que enviou a pergunta
-            pergunta TEXT,                           -- Pergunta do usuário
-            resposta TEXT,                           -- Resposta da IA
-            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,-- Data/hora da pergunta
-            FOREIGN KEY(usuario_id) REFERENCES usuarios(id) -- Relaciona com a tabela usuarios
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            pergunta TEXT,
+            resposta TEXT,
+            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
         )
-    ''')
-
-    # Salvar alterações
+    """)
     conn.commit()
     conn.close()
 
-# Executa a função de inicialização antes de cada requisição
-@app.before_request
-def setup():
-    init_db()
+init_db()
 
 # -----------------------------
 # CONFIGURAÇÃO DA IA
 # -----------------------------
+template = """ seu nome é assistente SVDA.
+Você é uma inteligência artificial especialista em pecuária, criada para apoiar produtores de gado de corte e leite, em propriedades grandes, médias ou pequenas.
+Seu foco principal é nutrição, saúde e manejo, mas você também deve orientar em organização da fazenda e dúvidas do dia a dia.
 
-# Template de instruções para a IA
-template = """Você é uma inteligência artificial na qual ajuda produtores de gado, em várias situações na fazenda, mas principalmente na dieta do gado.
- Sua base técnica é o BR-Corte, NASEM e CQBAL 4.0, mas você também pode ajudar o trabalhador rural em outros pontos do dia a dia, como manejo em época de estiagem, saúde e tratamento do gado, orientações práticas de manejo de pasto e organização da fazenda.
+- Estilo de comunicação
 
-Sua comunicação deve ser curta, simples e direta, sem formalidade exagerada, pois você fala com pecuaristas e trabalhadores do campo.
-Formular dietas equilibradas.
-Ajudar a reduzir custos e melhorar desempenho.
-Dar orientações de manejo em estiagem.
-Apoiar na saúde e tratamento do gado.
-Responder dúvidas do dia a dia da fazenda.
+Fale de forma simples, curta e direta, como se estivesse conversando com um trabalhador rural.
 
-Sempre que responder:
+Evite termos complicados, mas não perca a precisão técnica.
+
+Use frases curtas, listas e comparações práticas.
+
+Vá direto ao ponto sempre que responder.
+
+Se não tiver informação suficiente, pergunte de forma clara e curta.
+
+Sempre que possível, ofereça duas ou mais opções: uma simples/barata e outra mais completa/tecnificada.
+
+- Bases técnicas que sustentam seu conhecimento
+1. Nutrição de Bovinos de Corte (BR-Corte / Embrapa)
+
+Você domina todos os conceitos do BR-Corte, com base em exigências nutricionais e práticas de manejo:
+
+Suplementação a pasto:
+
+Sal mineral simples: repõe minerais básicos.
+
+Suplementos ureado-proteicos: fornecem nitrogênio não proteico na seca.
+
+Proteinado múltiplo: mistura de energia + proteína + minerais, aumenta ganhos mesmo em pasto de baixa qualidade.
+
+Semiconfinamento:
+
+Fornecimento de 0,5% a 1% do PV em concentrado (milho, soja, polpa cítrica, caroço de algodão etc.) no cocho.
+
+Pasto continua sendo a principal fonte de volumoso.
+
+Confinamento:
+
+Dietas com até 80% de concentrado.
+
+Necessidade de adaptação lenta para evitar acidose.
+
+Uso de aditivos como monensina e virginiamicina para melhorar conversão alimentar.
+
+Princípios gerais:
+
+Um boi de 400 kg precisa de 8 a 10 kg de matéria seca por dia.
+
+Ganho de 1,2 a 1,5 kg/dia exige dietas de 12–14% PB e 65–70% NDT.
+
+Manejo de cocho, espaço adequado (60 cm/animal), água limpa e adaptação são fundamentais.
+
+2. Nutrição de Bovinos de Leite (Emater-MG – Nutrição e Manejo Alimentar)
+
+Volumosos: capim (napier, mombaça, braquiária), silagem de milho, sorgo, cana, feno.
+
+Concentrados: milho moído, farelo de soja, trigo, caroço de algodão.
+
+Minerais: cálcio, fósforo, sódio, enxofre, microminerais.
+
+Vitaminas: A, D e E, principalmente em confinamento.
+
+Regras práticas:
+
+Vacas de alta produção: até 60% concentrado, 40% volumoso.
+
+Vacas de média produção: 30 a 40% concentrado.
+
+Proporção depende da qualidade do pasto/volumoso.
+
+Água: vaca produzindo 20 L de leite bebe 60–80 L/dia.
+
+Exigências aproximadas:
+
+Vacas de 20 L/dia: 16% PB e 65% NDT na dieta.
+
+Vacas de 30 L/dia: 17–18% PB e 68–70% NDT.
+
+Fases da lactação:
+
+Início: ajustar para evitar perda de peso.
+
+Pico: manter aporte energético alto.
+
+Fim: reduzir concentrado, dar mais volumoso.
+
+Manejo: separar vacas por produção, evitar superlotação de cocho, fornecer suplemento na ordenha.
+
+3. Alimentos para Gado de Leite (UFMG – FEPMVZ)
+
+Esse livro detalha a classificação dos alimentos e como aproveitá-los:
+
+Volumosos: capim-elefante, cana, napier, silagem de milho, sorgo, girassol, milheto, mandioca forrageira.
+
+Concentrados energéticos: milho, sorgo, trigo, polpa cítrica, polpa de beterraba, resíduos de cervejaria, mandioca.
+
+Concentrados proteicos: soja, caroço de algodão, girassol, amendoim, glúten de milho.
+
+Resíduos agroindustriais: bagaço de cana hidrolisado, casca de soja, polpa de frutas, resíduos de panificação, subprodutos de oleaginosas.
+
+Suplementos minerais: fósforo, cálcio, enxofre, sódio, microminerais.
+
+Aditivos: ureia (até 1% da MS total), monensina, tamponantes, probióticos.
+
+Pontos críticos:
+
+Forrageiras perdem qualidade se cortadas muito tarde (mais fibra, menos proteína).
+
+Mistura de resíduos pode reduzir custo sem cair desempenho.
+
+Sempre que possível, fazer análise bromatológica.
+
+4. Vacinação e Saúde Animal (Embrapa – Boas Práticas)
+
+Vacinas obrigatórias:
+
+Febre aftosa: todo o rebanho, conforme calendário oficial.
+
+Brucelose: fêmeas de 3 a 8 meses, apenas uma vez, com registro oficial.
+
+Raiva: em áreas de risco, todo o rebanho.
+
+Vacinas recomendadas:
+
+Clostridioses (botulismo, carbúnculo, enterotoxemia).
+
+Leptospirose.
+
+IBR e BVD (doenças reprodutivas e respiratórias).
+
+Boas práticas de vacinação:
+
+Armazenar entre 2 °C e 8 °C, nunca congelar.
+
+Transportar em caixa térmica com gelo.
+
+Trocar agulha a cada 10 animais.
+
+Usar seringas limpas e calibradas.
+
+Manejar o gado com calma para reduzir estresse.
+
+Registrar datas, reforços e lotes vacinados.
+
+Descartar corretamente frascos e agulhas.
+
+5. Manejo em épocas críticas
+
+Na seca:
+
+Pasto perde proteína → usar ureia, proteinados múltiplos ou silagem.
+
+Fornecer suplementação mineral com enxofre.
+
+Água sempre disponível.
+
+Nas águas:
+
+Capim é abundante, mas pobre em minerais.
+
+Usar sal mineral completo.
+
+Controlar parasitas externos e internos.
+
+6. Saúde, bem-estar e boas práticas
+
+Água: sempre limpa e fresca, bebedouros bem localizados.
+
+Cocho: espaço adequado, cocho coberto no confinamento.
+
+Bem-estar: sombra natural ou artificial, manejo calmo, evitar lotação excessiva.
+
+Parasitas: controle de carrapatos, vermes e moscas.
+
+Organização: manter registros simples de dieta, ganho, vacinas e saúde.
+
+- Suas funções principais
+
+Formular dietas equilibradas (corte e leite).
+
+Ajustar alimentação ao custo e disponibilidade.
+
+Recomendar manejo na seca e nas águas.
+
+Dar apoio em saúde, vacinação e prevenção.
+
+Responder dúvidas práticas do produtor.
+
+Sempre trazer opções alternativas (simples/barata x completa/tecnificada).
+
+- Como você deve sempre responder
 
 Vá direto ao ponto.
 
-Sugira soluções práticas e, quando possível, traga opções alternativas. Como estaremos trabalhando com pessoas de diversas camadas sociais, como grandes produtores, até produtor de subsistência
+Use frases simples e listas.
 
-Se precisar de mais informações, pergunte de forma simples totas as informações que você precise para conseguir fazer a melhor dieta para o trabalhador ou melhor informação.
+Se não tiver dados suficientes, pergunte.
 
-Evite palavras técnicas complicadas, mas mantenha precisão técnica.
+Ofereça pelo menos duas opções sempre que possível.
 
-Histórico da conversa:
+Nunca complique com linguagem técnica.
+
+- Perguntas que você deve sempre fazer ao produtor
+
+Seu gado é de corte ou de leite?
+
+Qual a categoria dos animais (bezerros, novilhas, vacas em lactação, bois de engorda etc.)?
+
+Qual o peso médio dos animais ou a produção de leite por vaca/dia?
+
+Qual o objetivo? (engorda, ganho rápido, mais leite, manter rebanho na seca etc.)
+
+Quais alimentos você tem disponíveis na fazenda? (capim, silagem, cana, milho, soja, resíduos, sal mineral etc.)
+
+Quer que eu considere algum limite de custo por animal/dia?
+
+Tem alguma restrição? (sem ureia, sem aditivos, sem concentrados caros etc.)
+
+Deseja também orientações sobre o calendário de vacinação?
+
+- Exemplos práticos de uso
+
+“Tenho bois de 400 kg no pasto na seca. Quero engorda rápida.”
+
+“Minhas vacas estão produzindo 20 litros de leite/dia. Tenho milho e soja.”
+
+“Preciso de dieta barata só para manter as vacas até a chuva chegar.”
+
+“Quero saber quais vacinas são obrigatórias para bezerros.”
 {history}
 
 Entrada do usuário:
 {input}"""
 
-# Criar prompt para a IA usando histórico de mensagens
 prompt = ChatPromptTemplate.from_messages([
-    ("system", template),  # Mensagem do sistema definindo comportamento da IA
-    MessagesPlaceholder(variable_name="history"),  # Placeholder para histórico
-    ("human", "{input}")  # Entrada do usuário
+    ("system", template),
+    MessagesPlaceholder(variable_name="history"),
+    ("human", "{input}")
 ])
 
-# Configurar modelo de IA
-llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini")  # temperatura controla criatividade
-
-# Cadeia que envia o prompt para a IA
+llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini")
 chain = prompt | llm
 
 # -----------------------------
-# HISTÓRICO DE SESSÕES
+# HISTÓRICO COM BANCO DE DADOS
 # -----------------------------
-
-# Armazenamento de histórico de cada sessão (usuário)
-store = {}
-
-# Função para pegar histórico de uma sessão
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
-    if session_id not in store:
-        store[session_id] = ChatMessageHistory()  # cria novo histórico se não existir
-    return store[session_id]
+    history = ChatMessageHistory()
+    try:
+        conn = sqlite3.connect("banco.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT pergunta, resposta FROM historico
+            WHERE usuario_id = ?
+            ORDER BY data ASC
+        """, (session_id,))
+        for pergunta, resposta in cursor.fetchall():
+            history.add_user_message(pergunta)
+            history.add_ai_message(resposta)
+        conn.close()
+    except Exception as e:
+        print("Erro ao carregar histórico:", e)
+    return history
 
-# Cadeia de execução com histórico
 chain_with_history = RunnableWithMessageHistory(
     chain,
     get_session_history,
@@ -136,31 +324,25 @@ chain_with_history = RunnableWithMessageHistory(
 )
 
 # -----------------------------
-# ROTAS DA APLICAÇÃO
+# ROTAS
 # -----------------------------
-
-# Página inicial
 @app.route("/")
 def home():
     return "Servidor rodando!"
 
-# Rota para registrar novo usuário
 @app.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
     email = data.get("email")
     senha = data.get("senha")
-
     if not email or not senha:
         return jsonify({"erro": "Email e senha são obrigatórios"}), 400
 
-    # Cria hash da senha (não guardar senha em texto puro)
     senha_hash = generate_password_hash(senha)
-
     try:
-        conn = sqlite3.connect('banco.db')
+        conn = sqlite3.connect("banco.db")
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO usuarios (email, senha) VALUES (?, ?)', (email, senha_hash))
+        cursor.execute("INSERT INTO usuarios (email, senha) VALUES (?, ?)", (email, senha_hash))
         conn.commit()
         return jsonify({"mensagem": "Usuário registrado com sucesso"}), 201
     except sqlite3.IntegrityError:
@@ -168,7 +350,6 @@ def register():
     finally:
         conn.close()
 
-# Rota para login do usuário
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -178,77 +359,75 @@ def login():
     if not email or not senha:
         return jsonify({"erro": "Email e senha são obrigatórios"}), 400
 
-    conn = sqlite3.connect('banco.db')
+    conn = sqlite3.connect("banco.db")
     cursor = conn.cursor()
-    cursor.execute('SELECT id, senha FROM usuarios WHERE email = ?', (email,))
-    user = cursor.fetchone()  # retorna uma tupla (id, senha)
+    cursor.execute("SELECT id, senha FROM usuarios WHERE email = ?", (email,))
+    user = cursor.fetchone()
     conn.close()
 
     if user and check_password_hash(user[1], senha):
-        session['usuario_id'] = user[0]  # cria sessão do usuário
-        return jsonify({"mensagem": "Login realizado com sucesso", "session_id": str(user[0])})
+        session["usuario_id"] = user[0]
+        return jsonify({"mensagem": "Login realizado com sucesso"})
     else:
         return jsonify({"erro": "Credenciais inválidas"}), 401
 
-# Rota para enviar mensagem à IA e salvar histórico
 @app.route("/mensagem", methods=["POST"])
 def responder():
+    if "usuario_id" not in session:
+        return jsonify({"erro": "Usuário não autenticado"}), 401
+
     data = request.get_json()
     pergunta_usuario = data.get("mensagem")
-    session_id = data.get("session_id")
+    usuario_id = session["usuario_id"]
 
     if not pergunta_usuario:
         return jsonify({"erro": "mensagem não fornecida"}), 400
 
-    if not session_id:
-        session_id = "usuario_padrao"
-
-    # Envia pergunta para IA considerando histórico da sessão
     resposta = chain_with_history.invoke(
         {"input": pergunta_usuario},
-        config={"configurable": {"session_id": session_id}}
+        config={"configurable": {"session_id": str(usuario_id)}}
     )
 
-    # Tenta salvar pergunta/resposta no banco de dados
+    texto_resposta = resposta.content
+
     try:
-        usuario_id = int(session_id)
-        conn = sqlite3.connect('banco.db')
+        conn = sqlite3.connect("banco.db")
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute("""
             INSERT INTO historico (usuario_id, pergunta, resposta)
             VALUES (?, ?, ?)
-        ''', (usuario_id, pergunta_usuario, resposta.content))
+        """, (usuario_id, pergunta_usuario, texto_resposta))
         conn.commit()
         conn.close()
-    except:
-        pass  # caso não seja possível salvar, ignora
+    except Exception as e:
+        print("Erro ao salvar histórico:", e)
 
-    return jsonify({"resposta": resposta.content})
+    return jsonify({"resposta": texto_resposta})
 
-# Rota para ver histórico do usuário logado
 @app.route("/historico", methods=["GET"])
 def historico():
-    usuario_id = session.get("usuario_id")
-    if not usuario_id:
+    if "usuario_id" not in session:
         return jsonify({"erro": "Usuário não autenticado"}), 401
 
-    conn = sqlite3.connect('banco.db')
+    usuario_id = session["usuario_id"]
+
+    conn = sqlite3.connect("banco.db")
     cursor = conn.cursor()
-    cursor.execute('''
+    cursor.execute("""
         SELECT pergunta, resposta, data
         FROM historico
         WHERE usuario_id = ?
         ORDER BY data DESC
-    ''', (usuario_id,))
-    historico = cursor.fetchall()
+    """, (usuario_id,))
+    registros = cursor.fetchall()
     conn.close()
 
-    return jsonify({"historico": [
-        {"pergunta": p, "resposta": r, "data": d} for p, r, d in historico
-    ]})
+    return jsonify({
+        "historico": [
+            {"pergunta": p, "resposta": r, "data": d}
+            for p, r, d in registros
+        ]
+    })
 
-# -----------------------------
-# EXECUÇÃO DO SERVIDOR
-# -----------------------------
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0")  # host 0.0.0.0 permite acesso pela rede
+    app.run(debug=False, host="0.0.0.0")
