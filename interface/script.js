@@ -65,7 +65,7 @@ input.addEventListener('keydown', (e) => {
 });
 
 document.querySelector('.back-btn')?.addEventListener('click', () => {
-  window.location.href = 'login.html';
+  window.location.href = 'conversas.html';
 });
 
 window.addEventListener('DOMContentLoaded', () => {

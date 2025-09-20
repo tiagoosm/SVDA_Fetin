@@ -30,8 +30,10 @@
       <input id="email" type="email" placeholder="E-mail" required>
       <input id="senha" type="password" placeholder="Senha" required>
       <button type="submit" class="btn-primary">Entrar</button>
+
       <a href="#" class="forgot">Esqueceu a senha?</a>
       <div class="divider"><span>Ou</span></div>
+
       <button type="button" class="btn-secondary" onclick="window.location.href='cadastro.html'">Cadastre-se</button>
     </form>
   </div>
@@ -64,7 +66,7 @@
       localStorage.setItem('session_id', data.session_id);
 
       // segue para a home
-      window.location.href = 'home.html';
+      window.location.href = 'conversas.html';
     } catch (err) {
       console.error(err);
       alert('Falha ao conectar com o servidor.');
