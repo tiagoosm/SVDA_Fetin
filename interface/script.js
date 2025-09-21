@@ -91,3 +91,7 @@ Aqui o seu rebanho vem em primeiro lugar. Nosso objetivo é deixar a sua vida no
   );
 });
 
+function logout() {
+  localStorage.removeItem('session_id'); 
+  window.location.href = 'login.html';  
+}
