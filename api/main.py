@@ -1,3 +1,4 @@
+#original
 import os
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, session
@@ -17,6 +18,7 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 app.config["JSON_AS_ASCII"] = False
+app.secret_key = os.getenv("SECRET_KEY", "chave_super_secreta_padrao")
 
 # -----------------------------
 # BANCO DE DADOS
@@ -312,6 +314,7 @@ chain_with_history = RunnableWithMessageHistory(
 # -----------------------------
 # ROTAS
 # -----------------------------
+
 @app.route("/")
 def home():
     return "Servidor rodando!"
