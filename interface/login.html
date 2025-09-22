@@ -65,8 +65,9 @@
       // guarda session_id para enviar junto nas mensagens ao chatbot
       localStorage.setItem('session_id', data.session_id);
 
-      // segue para a home
-      window.location.href = 'home.html';
+     // segue para a lista de conversas
+    window.location.href = 'conversas.html';
+
     } catch (err) {
       console.error(err);
       alert('Falha ao conectar com o servidor.');

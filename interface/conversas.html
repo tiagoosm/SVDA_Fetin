@@ -10,41 +10,81 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
- <header>
+  <header>
     <div class="text-container">
       <h1>SVDA</h1>
       <p>Sistema de Verificação de Dados Alimentícios</p>
     </div>
+
+    <!-- Botão voltar -->
     <img src="assets/BotaoBack.png" alt="voltar" class="back-btn" onclick="window.location.href='home.html'"/>
+
+    <!-- Botão novo chat -->
+    <img src="assets/newchat.png" alt="Novo chat" class="newchat-btn" onclick="novoChat()" />
+
+    <!-- Botão logout -->
+    <img src="assets/Botaologout.png" alt="logout" class="logout-btn" onclick="logout()" />
   </header>
 
   <div class="content">
-    <div class="conversations">
-      <div class="conversation-item">
-        <h3>Título</h3>
-        <p>Prévia da conversa</p>
-      </div>
-      <div class="conversation-item">
-        <h3>Título</h3>
-        <p>Prévia da conversa</p>
-      </div>
-      <div class="conversation-item">
-        <h3>Título</h3>
-        <p>Prévia da conversa</p>
-      </div>
-      <div class="conversation-item">
-        <h3>Título</h3>
-        <p>Prévia da conversa</p>
-      </div>
-      <div class="conversation-item">
-        <h3>Título</h3>
-        <p>Prévia da conversa</p>
-      </div>
+    <div class="conversations" id="lista-conversas">
+      <p>Carregando conversas...</p>
     </div>
 
     <div class="divider-vertical"></div>
-
     <img src="assets/Bull.png" alt="Touro" class="bull-bg">
   </div>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:5000';
+
+    async function carregarConversas() {
+      try {
+        const sessionId = localStorage.getItem('session_id') || '';
+        const url = `${API_BASE}/conversas${sessionId ? '?session_id=' + encodeURIComponent(sessionId) : ''}`;
+
+        const resp = await fetch(url, { method: 'GET' });
+        const data = await resp.json();
+
+        const container = document.getElementById('lista-conversas');
+        container.innerHTML = "";
+
+        if (!data.conversas || data.conversas.length === 0) {
+          container.innerHTML = "<p>Nenhuma conversa encontrada.</p>";
+          return;
+        }
+
+        data.conversas.forEach(conv => {
+          const item = document.createElement('div');
+          item.classList.add('conversation-item');
+          item.innerHTML = `
+            <h3>${conv.titulo}</h3>
+            <p>${conv.previa}</p>
+          `;
+          item.onclick = () => {
+            localStorage.setItem('conversa_id', conv.conversa_id);
+            window.location.href = "home.html";
+          };
+          container.appendChild(item);
+        });
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao buscar conversas.");
+      }
+    }
+
+    function novoChat() {
+      localStorage.removeItem('conversa_id'); // limpa conversa atual
+      window.location.href = "home.html"; // abre página home
+    }
+
+    function logout() {
+      localStorage.removeItem('session_id'); 
+      localStorage.removeItem('conversa_id'); 
+      window.location.href = 'login.html';  
+    }
+
+    window.addEventListener("DOMContentLoaded", carregarConversas);
+  </script>
 </body>
 </html>
