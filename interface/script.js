@@ -28,6 +28,47 @@ function addMessage(text, sender) {
   messageWrapper.appendChild(p);
   messagesDiv.prepend(messageWrapper);
 }
+// função para mostrar a mensagem digitando.
+function addMessageTyping(text, sender, velocidade = 3) {
+  const messageWrapper = document.createElement('div');
+  messageWrapper.classList.add('message-wrapper');
+
+  const p = document.createElement('p');
+  p.classList.add('message');
+
+  if (sender === 'Você') {
+    messageWrapper.classList.add('sent');
+    p.classList.add('message-sent');
+  } 
+  else if (sender === 'IA' || sender === 'SVDA') {
+    messageWrapper.classList.add('received');
+    p.classList.add('message-received');
+  } 
+  else {
+    messageWrapper.classList.add('system');
+    p.classList.add('message-system');
+  }
+
+  messageWrapper.appendChild(p);
+  messagesDiv.prepend(messageWrapper);
+
+  // texto parcial que vai crescendo
+  let parcial = "";
+  let i = 0;
+
+  function escrever() {
+    if (i < text.length) {
+      parcial += text.charAt(i);
+      // renderiza markdown do texto parcial
+      p.innerHTML = marked.parse(parcial);
+      i++;
+      setTimeout(escrever, velocidade);
+    }
+  }
+  escrever();
+}
+
+
 
 sendBtn.addEventListener('click', async () => {
   const mensagem = input.value.trim();
@@ -52,7 +93,7 @@ sendBtn.addEventListener('click', async () => {
     }
 
     const data = await response.json();
-    addMessage(data.resposta, 'SVDA');
+    addMessageTyping(data.resposta, 'SVDA',);
 
     if (data.conversa_id) {
       localStorage.setItem('conversa_id', data.conversa_id);
@@ -124,3 +165,4 @@ function logout() {
   localStorage.removeItem('conversa_id'); 
   window.location.href = 'login.html';  
 }
+
