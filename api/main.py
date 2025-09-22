@@ -1,5 +1,6 @@
-#original
+
 import os
+import uuid
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
@@ -11,18 +12,13 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 
-# -----------------------------
-# CONFIGURAÇÃO INICIAL
-# -----------------------------
 load_dotenv()
 app = Flask(__name__)
+
 CORS(app, supports_credentials=True)
 app.config["JSON_AS_ASCII"] = False
 app.secret_key = os.getenv("SECRET_KEY", "chave_super_secreta_padrao")
 
-# -----------------------------
-# BANCO DE DADOS
-# -----------------------------
 def init_db():
     conn = sqlite3.connect("banco.db")
     cursor = conn.cursor()
@@ -37,6 +33,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS historico (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER,
+            conversa_id TEXT,
             pergunta TEXT,
             resposta TEXT,
             data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -47,10 +44,6 @@ def init_db():
     conn.close()
 
 init_db()
-
-# -----------------------------
-# CONFIGURAÇÃO DA IA
-# -----------------------------
 
 template = """ seu nome é assistente SVDA.
 Você é uma inteligência artificial especialista em pecuária, criada para apoiar produtores de gado de corte e leite, em propriedades grandes, médias ou pequenas.
@@ -311,10 +304,6 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="history"
 )
 
-# -----------------------------
-# ROTAS
-# -----------------------------
-
 @app.route("/")
 def home():
     return "Servidor rodando!"
@@ -365,6 +354,7 @@ def responder():
     data = request.get_json()
     pergunta_usuario = data.get("mensagem")
     session_id = data.get("session_id") or "usuario_padrao"
+    conversa_id = data.get("conversa_id") or str(uuid.uuid4())
 
     if not pergunta_usuario:
         return jsonify({"erro": "mensagem não fornecida"}), 400
@@ -374,37 +364,96 @@ def responder():
         config={"configurable": {"session_id": session_id}}
     )
 
-    texto_resposta = resposta.content  
-
+    texto_resposta = resposta.content
     try:
         usuario_id = int(session_id)
         conn = sqlite3.connect("banco.db")
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO historico (usuario_id, pergunta, resposta)
-            VALUES (?, ?, ?)
-        """, (usuario_id, pergunta_usuario, texto_resposta))
+            INSERT INTO historico (usuario_id, conversa_id, pergunta, resposta)
+            VALUES (?, ?, ?, ?)
+        """, (usuario_id, conversa_id, pergunta_usuario, texto_resposta))
         conn.commit()
         conn.close()
-    except:
+    except Exception:
         pass
 
-    return jsonify({"resposta": texto_resposta})
-
-@app.route("/historico", methods=["GET"])
-def historico():
+    return jsonify({"resposta": texto_resposta, "conversa_id": conversa_id})
+@app.route("/conversas", methods=["GET"])
+def listar_conversas():
     usuario_id = session.get("usuario_id")
     if not usuario_id:
-        return jsonify({"erro": "Usuário não autenticado"}), 401
+        
+        sid = request.args.get("session_id") or request.headers.get("X-Session-Id")
+        try:
+            if sid:
+                usuario_id = int(sid)
+        except:
+            usuario_id = None
+
+    if not usuario_id:
+        return jsonify({"conversas": []}), 200
 
     conn = sqlite3.connect("banco.db")
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT pergunta, resposta, data
-        FROM historico
-        WHERE usuario_id = ?
-        ORDER BY data DESC
+        SELECT h.conversa_id, h.pergunta, h.resposta, h.data
+        FROM historico h
+        JOIN (
+            SELECT conversa_id, MIN(data) AS primeira_data
+            FROM historico
+            WHERE usuario_id = ?
+            GROUP BY conversa_id
+        ) p ON h.conversa_id = p.conversa_id AND h.data = p.primeira_data
+        ORDER BY p.primeira_data DESC
     """, (usuario_id,))
+    registros = cursor.fetchall()
+    conn.close()
+
+    conversas = []
+    for conversa_id, pergunta, resposta, data in registros:
+        titulo = (pergunta[:40] + "...") if pergunta else "Conversa"
+        previa = (resposta[:80] + "...") if resposta else ""
+        conversas.append({
+            "conversa_id": conversa_id,
+            "titulo": titulo,
+            "previa": previa,
+            "data": data
+        })
+
+    return jsonify({"conversas": conversas})
+@app.route("/historico", methods=["GET"])
+def historico():
+    usuario_id = session.get("usuario_id")
+    conversa_id = request.args.get("conversa_id")
+
+    if not usuario_id:
+        sid = request.args.get("session_id") or request.headers.get("X-Session-Id")
+        try:
+            if sid:
+                usuario_id = int(sid)
+        except:
+            usuario_id = None
+
+    if not usuario_id:
+        return jsonify({"erro": "Usuário não autenticado", "historico": []}), 200
+
+    conn = sqlite3.connect("banco.db")
+    cursor = conn.cursor()
+    if conversa_id:
+        cursor.execute("""
+            SELECT pergunta, resposta, data
+            FROM historico
+            WHERE usuario_id = ? AND conversa_id = ?
+            ORDER BY data ASC
+        """, (usuario_id, conversa_id))
+    else:
+        cursor.execute("""
+            SELECT pergunta, resposta, data
+            FROM historico
+            WHERE usuario_id = ?
+            ORDER BY data ASC
+        """, (usuario_id,))
     registros = cursor.fetchall()
     conn.close()
 
