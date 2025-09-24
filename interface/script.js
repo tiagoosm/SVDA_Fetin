@@ -1,17 +1,24 @@
-const API_BASE = 'http://127.0.0.1:5000';
-const input = document.querySelector('.input-text');
-const sendBtn = document.querySelector('.send-btn');
-const chatContainer = document.querySelector('.chat-container');
-const messagesDiv = document.querySelector('.messages');
+// ==============================
+// CONFIGURAÇÃO INICIAL
+// ==============================
+const API_BASE = 'http://127.0.0.1:5000'; // URL base da API Flask (backend)
+const input = document.querySelector('.input-text');       // Campo de entrada de texto
+const sendBtn = document.querySelector('.send-btn');       // Botão de enviar
+const chatContainer = document.querySelector('.chat-container'); // Container do chat
+const messagesDiv = document.querySelector('.messages');   // Div que vai conter as mensagens
 
+// ==============================
+// FUNÇÃO: adicionar mensagem no chat
+// ==============================
 function addMessage(text, sender) {
-  const messageWrapper = document.createElement('div');
+  const messageWrapper = document.createElement('div'); // Cria container da mensagem
   messageWrapper.classList.add('message-wrapper');
 
-  const p = document.createElement('p');
-  p.innerHTML = marked.parse(text);
+  const p = document.createElement('p'); // Cria parágrafo com o texto
+  p.innerHTML = marked.parse(text);      // Usa "marked" para renderizar markdown
   p.classList.add('message');
 
+  // Define estilo conforme remetente
   if (sender === 'Você') {
     messageWrapper.classList.add('sent');
     p.classList.add('message-sent');
@@ -25,10 +32,14 @@ function addMessage(text, sender) {
     p.classList.add('message-system');
   }
 
+  // Adiciona mensagem na tela (no topo)
   messageWrapper.appendChild(p);
   messagesDiv.prepend(messageWrapper);
 }
-// função para mostrar a mensagem digitando.
+
+// ==============================
+// FUNÇÃO: mostrar mensagem "digitando" letra por letra
+// ==============================
 function addMessageTyping(text, sender, velocidade = 3) {
   const messageWrapper = document.createElement('div');
   messageWrapper.classList.add('message-wrapper');
@@ -36,6 +47,7 @@ function addMessageTyping(text, sender, velocidade = 3) {
   const p = document.createElement('p');
   p.classList.add('message');
 
+  // Define estilo conforme remetente
   if (sender === 'Você') {
     messageWrapper.classList.add('sent');
     p.classList.add('message-sent');
@@ -52,49 +64,56 @@ function addMessageTyping(text, sender, velocidade = 3) {
   messageWrapper.appendChild(p);
   messagesDiv.prepend(messageWrapper);
 
-  // texto parcial que vai crescendo
+  // Texto parcial vai crescendo como se fosse digitado
   let parcial = "";
   let i = 0;
 
   function escrever() {
     if (i < text.length) {
-      parcial += text.charAt(i);
-      // renderiza markdown do texto parcial
-      p.innerHTML = marked.parse(parcial);
+      parcial += text.charAt(i);              // Adiciona letra por letra
+      p.innerHTML = marked.parse(parcial);    // Renderiza o markdown parcial
       i++;
-      setTimeout(escrever, velocidade);
+      setTimeout(escrever, velocidade);       // Controla velocidade da digitação
     }
   }
   escrever();
 }
 
-
-
+// ==============================
+// EVENTO: clique no botão de enviar mensagem
+// ==============================
 sendBtn.addEventListener('click', async () => {
-  const mensagem = input.value.trim();
-  if (!mensagem) return;
+  const mensagem = input.value.trim(); // Pega mensagem digitada
+  if (!mensagem) return;               // Se vazio, não faz nada
 
-  addMessage(mensagem, 'Você');
-  input.value = "";
+  addMessage(mensagem, 'Você'); // Mostra mensagem no chat
+  input.value = "";             // Limpa campo de texto
 
+  // Recupera session_id e conversa_id do localStorage
   const sessionId = localStorage.getItem('session_id') || null;
   const conversaId = localStorage.getItem('conversa_id') || null;
 
   try {
+    // Envia mensagem para o backend Flask
     const response = await fetch(`${API_BASE}/mensagem`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mensagem, session_id: sessionId, conversa_id: conversaId })
     });
 
+    // Caso a resposta não seja válida
     if (!response.ok) {
       addMessage("Erro ao receber resposta do servidor.", "Sistema");
       return;
     }
 
+    // Resposta da API (json)
     const data = await response.json();
-    addMessageTyping(data.resposta, 'SVDA',);
 
+    // Mostra resposta da IA com efeito de digitação
+    addMessageTyping(data.resposta, 'SVDA');
+
+    // Atualiza conversa_id no localStorage (mantém continuidade da conversa)
     if (data.conversa_id) {
       localStorage.setItem('conversa_id', data.conversa_id);
     }
@@ -104,20 +123,31 @@ sendBtn.addEventListener('click', async () => {
   }
 });
 
+// ==============================
+// EVENTO: enviar com tecla Enter
+// ==============================
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
-    sendBtn.click();
+    sendBtn.click(); // Simula clique no botão de enviar
   }
 });
 
+// ==============================
+// EVENTO: voltar para a lista de conversas
+// ==============================
 document.querySelector('.back-btn')?.addEventListener('click', () => {
   window.location.href = 'conversas.html';
 });
 
+// ==============================
+// EVENTO: carregar histórico da conversa ao abrir a página
+// ==============================
 window.addEventListener('DOMContentLoaded', async () => {
   const sessionId = localStorage.getItem('session_id') || null;
   const conversaId = localStorage.getItem('conversa_id') || null;
+
+  // Se já existe conversa, busca histórico no backend
   if (conversaId) {
     try {
       const url = `${API_BASE}/historico?conversa_id=${encodeURIComponent(conversaId)}${sessionId ? '&session_id=' + encodeURIComponent(sessionId) : ''}`;
@@ -125,7 +155,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       const data = await resp.json();
 
       if (resp.ok && data.historico) {
-        // mostramos do mais recente para o mais antigo (inverter para exibir cronologicamente)
+        // Mostra as mensagens (pergunta e resposta)
         data.historico.forEach(msg => {
           addMessage(msg.pergunta, 'Você');
           addMessage(msg.resposta, 'SVDA');
@@ -137,9 +167,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // mensagem inicial padrão
+  // Caso não haja histórico, mostra mensagem inicial padrão de boas-vindas
   addMessage(
-    `👋 Olá, seja bem-vindo ao Serviço de Dados Alimentícios – SVDA!
+    `👋 Olá, seja bem-vindo ao Serviço de Dados Alimentícios Bovinos – SVDAD!
 
 Aqui o seu rebanho vem em primeiro lugar. Nosso objetivo é deixar a sua vida no campo mais simples e produtiva, oferecendo apoio em tudo o que você precisa:
 
@@ -160,9 +190,11 @@ Aqui o seu rebanho vem em primeiro lugar. Nosso objetivo é deixar a sua vida no
   );
 });
 
+// ==============================
+// FUNÇÃO: logout (sair)
+// ==============================
 function logout() {
-  localStorage.removeItem('session_id'); 
-  localStorage.removeItem('conversa_id'); 
-  window.location.href = 'login.html';  
+  localStorage.removeItem('session_id');  // Remove ID da sessão
+  localStorage.removeItem('conversa_id'); // Remove ID da conversa
+  window.location.href = 'login.html';    // Redireciona para tela de login
 }
-
