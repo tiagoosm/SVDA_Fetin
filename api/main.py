@@ -1,27 +1,38 @@
-
-import os
-import uuid
-from dotenv import load_dotenv
-from flask import Flask, request, jsonify, session
-from flask_cors import CORS
-import sqlite3
-from werkzeug.security import generate_password_hash, check_password_hash
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables.history import RunnableWithMessageHistory
+# ==============================
+# BIBLIOTECAS
+# ==============================
+import os  #usado para trabalhar com variaveis de ambiente para manipular caminhos de arquivos
+import uuid #usado para gerar IDs temporarios de usuarios
+from dotenv import load_dotenv                # Para carregar variáveis de ambiente (.env)
+from flask import Flask, request, jsonify, session  # Framework web para criar a API
+from flask_cors import CORS                   # Para liberar acesso de outros domínios
+import sqlite3                                # Banco de dados SQLite
+from werkzeug.security import generate_password_hash, check_password_hash  # Hash de senhas
+from langchain_openai import ChatOpenAI       # Integração com modelo OpenAI
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder  # Construção de prompt
+from langchain_core.runnables.history import RunnableWithMessageHistory    # Histórico de conversas
 from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory  # Armazena histórico
 
-load_dotenv()
+# ==============================
+# CONFIGURAÇÃO FLASK
+# ==============================
+load_dotenv()  # Carrega variáveis do arquivo .env
 app = Flask(__name__)
+CORS(app, supports_credentials=True)  # Habilita CORS (permite chamadas de outros domínios)
+app.config["JSON_AS_ASCII"] = False   # Permite caracteres UTF-8 (acentos no JSON)
+app.secret_key = os.getenv("SECRET_KEY", "chave_super_secreta_padrao")  # Chave secreta para sessões
 
-CORS(app, supports_credentials=True)
-app.config["JSON_AS_ASCII"] = False
-app.secret_key = os.getenv("SECRET_KEY", "chave_super_secreta_padrao")
+# ==============================
+# BANCO DE DADOS
+# ==============================
 
 def init_db():
+   # Cria tabelas caso ainda não existam
     conn = sqlite3.connect("banco.db")
     cursor = conn.cursor()
+
+    # Tabela de usuários
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,6 +40,8 @@ def init_db():
             senha TEXT NOT NULL
         )
     """)
+
+    # Tabela de histórico de conversas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS historico (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,9 +56,15 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Inicializa o banco na primeira execução
 init_db()
 
-template = """ seu nome é assistente SVDA.
+# ==============================
+# TEMPLATE DO ASSISTENTE (PROMPT)
+# ==============================
+# Esse texto define como a IA deve se comportar
+
+template = """ seu nome é assistente SVDAB.
 Você é uma inteligência artificial especialista em pecuária, criada para apoiar produtores de gado de corte e leite, em propriedades grandes, médias ou pequenas.
 Seu foco principal é nutrição, saúde e manejo, mas você também deve orientar em organização da fazenda e dúvidas do dia a dia.
 
@@ -275,28 +294,42 @@ Deseja também orientações sobre o calendário de vacinação?
 “Preciso de dieta barata só para manter as vacas até a chuva chegar.”
 
 “Quero saber quais vacinas são obrigatórias para bezerros.”
-
 Histórico da conversa:
 {history}
 
 Entrada do usuário:
 {input}"""
 
+# ==============================
+# CONFIGURAÇÃO DO LLM (IA)
+# ==============================
+
 prompt = ChatPromptTemplate.from_messages([
-    ("system", template),
-    MessagesPlaceholder(variable_name="history"),
-    ("human", "{input}")
+    ("system", template),              # Mensagem inicial (contexto fixo)
+    MessagesPlaceholder(variable_name="history"),  # Histórico da conversa
+    ("human", "{input}")               # Entrada do usuário
 ])
 
-llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini")
-chain = prompt | llm
+# Modelo OpenAI usado (GPT-4o-mini)
 
-store = {}
+llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini")
+chain = prompt | llm  # Junta o prompt com o modelo
+
+# ==============================
+# GERENCIAMENTO DE HISTÓRICO
+# ==============================
+
+store = {}  # Dicionário em memória para guardar históricos
+
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
+
+    #Cria ou recupera histórico de uma sessão
+
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
 
+# Integra a cadeia com histórico de mensagens
 chain_with_history = RunnableWithMessageHistory(
     chain,
     get_session_history,
@@ -304,19 +337,31 @@ chain_with_history = RunnableWithMessageHistory(
     history_messages_key="history"
 )
 
+# ==============================
+# ROTAS FLASK
+# ==============================
+
 @app.route("/")
 def home():
+
+    #Página inicial para teste
+    
     return "Servidor rodando!"
+
+# ------------------------------
+# Registro de usuário
+# ------------------------------
 
 @app.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
     email = data.get("email")
     senha = data.get("senha")
+
     if not email or not senha:
         return jsonify({"erro": "Email e senha são obrigatórios"}), 400
 
-    senha_hash = generate_password_hash(senha)
+    senha_hash = generate_password_hash(senha)  # Cria hash da senha
     try:
         conn = sqlite3.connect("banco.db")
         cursor = conn.cursor()
@@ -327,6 +372,10 @@ def register():
         return jsonify({"erro": "Email já cadastrado"}), 409
     finally:
         conn.close()
+
+# ------------------------------
+# Login
+# ------------------------------
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -343,21 +392,28 @@ def login():
     user = cursor.fetchone()
     conn.close()
 
+    # Verifica senha
     if user and check_password_hash(user[1], senha):
         session["usuario_id"] = user[0]
         return jsonify({"mensagem": "Login realizado com sucesso", "session_id": str(user[0])})
     else:
         return jsonify({"erro": "Credenciais inválidas"}), 401
 
+# ------------------------------
+# Enviar mensagem ao chatbot
+# ------------------------------
+
 @app.route("/mensagem", methods=["POST"])
 def responder():
     data = request.get_json()
     pergunta_usuario = data.get("mensagem")
     session_id = data.get("session_id") or "usuario_padrao"
-    conversa_id = data.get("conversa_id") or str(uuid.uuid4())
+    conversa_id = data.get("conversa_id") or str(uuid.uuid4())  # Cria ID da conversa se não tiver
 
     if not pergunta_usuario:
         return jsonify({"erro": "mensagem não fornecida"}), 400
+
+    # Chama o modelo com histórico
 
     resposta = chain_with_history.invoke(
         {"input": pergunta_usuario},
@@ -365,6 +421,8 @@ def responder():
     )
 
     texto_resposta = resposta.content
+
+    # Salva no banco (se usuário for válido)
     try:
         usuario_id = int(session_id)
         conn = sqlite3.connect("banco.db")
@@ -379,11 +437,17 @@ def responder():
         pass
 
     return jsonify({"resposta": texto_resposta, "conversa_id": conversa_id})
+
+# ------------------------------
+# Listar conversas de um usuário
+# ------------------------------
+
 @app.route("/conversas", methods=["GET"])
 def listar_conversas():
     usuario_id = session.get("usuario_id")
     if not usuario_id:
-        
+        # Tenta pegar pelo session_id enviado no request
+
         sid = request.args.get("session_id") or request.headers.get("X-Session-Id")
         try:
             if sid:
@@ -410,6 +474,8 @@ def listar_conversas():
     registros = cursor.fetchall()
     conn.close()
 
+    # Monta resposta resumida
+
     conversas = []
     for conversa_id, pergunta, resposta, data in registros:
         titulo = (pergunta[:40] + "...") if pergunta else "Conversa"
@@ -422,12 +488,20 @@ def listar_conversas():
         })
 
     return jsonify({"conversas": conversas})
+
+# ------------------------------
+# Histórico de uma conversa
+# ------------------------------
+
 @app.route("/historico", methods=["GET"])
 def historico():
     usuario_id = session.get("usuario_id")
     conversa_id = request.args.get("conversa_id")
 
     if not usuario_id:
+
+        # Tenta pegar pelo session_id enviado no request
+
         sid = request.args.get("session_id") or request.headers.get("X-Session-Id")
         try:
             if sid:
@@ -440,6 +514,9 @@ def historico():
 
     conn = sqlite3.connect("banco.db")
     cursor = conn.cursor()
+
+    # Busca histórico específico ou todos
+
     if conversa_id:
         cursor.execute("""
             SELECT pergunta, resposta, data
@@ -463,6 +540,10 @@ def historico():
             for p, r, d in registros
         ]
     })
+
+# ==============================
+# EXECUÇÃO DO SERVIDOR
+# ==============================
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
