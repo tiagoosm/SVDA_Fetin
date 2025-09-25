@@ -17,7 +17,7 @@
     </div>
 
     <!-- Botão voltar -->
-    <img src="assets/BotaoBack.png" alt="voltar" class="back-btn" onclick="window.location.href='home.html'"/>
+    <img src="assets/BotaoBack.png" alt="voltar" class="back-btn" onclick="window.location.href='index.html'"/>
 
     <!-- Botão novo chat -->
     <img src="assets/newchat.png" alt="Novo chat" class="newchat-btn" onclick="novoChat()" />
@@ -63,7 +63,7 @@
           `;
           item.onclick = () => {
             localStorage.setItem('conversa_id', conv.conversa_id);
-            window.location.href = "home.html";
+            window.location.href = "index.html";
           };
           container.appendChild(item);
         });
@@ -75,7 +75,7 @@
 
     function novoChat() {
       localStorage.removeItem('conversa_id'); // limpa conversa atual
-      window.location.href = "home.html"; // abre página home
+      window.location.href = "index.html"; // abre página index
     }
 
     function logout() {
