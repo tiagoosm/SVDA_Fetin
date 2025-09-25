@@ -31,7 +31,7 @@
       <input id="senha" type="password" placeholder="Senha" required>
       <button type="submit" class="btn-primary">Entrar</button>
 
-      <a href="#" class="forgot">Esqueceu a senha?</a>
+      <a href="#" class="forgot" id="forget-password">Esqueceu a senha?</a>
       <div class="divider"><span>Ou</span></div>
 
       <button type="button" class="btn-secondary" onclick="window.location.href='cadastro.html'">Cadastre-se</button>
@@ -73,7 +73,10 @@
       alert('Falha ao conectar com o servidor.');
     }
   });
-</script>
 
+  document.getElementById("forget-password").addEventListener("click", function() {
+  alert("Verifique seu e-mail");
+});
+</script>
 </body>
 </html>
