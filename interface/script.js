@@ -169,7 +169,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Caso não haja histórico, mostra mensagem inicial padrão de boas-vindas
   addMessage(
-    `👋 Olá, seja bem-vindo ao Serviço de Dados Alimentícios Bovinos – SVDAD!
+    `👋 Olá, seja bem-vindo ao Serviço de Dados Alimentícios Bovinos – SVDAB!
 
 Aqui o seu rebanho vem em primeiro lugar. Nosso objetivo é deixar a sua vida no campo mais simples e produtiva, oferecendo apoio em tudo o que você precisa:
 
