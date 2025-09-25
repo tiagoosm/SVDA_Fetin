@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat</title>
+
+  <link rel="icon" type="image/png" href="assets/Icon.png"/>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header>
+    <div class="text-container">
+      <h1>SVDAB</h1>
+      <p>Sistema de Verificação de Dados Alimentícios Bovinos</p>
+    </div>
+   
+    <img src="assets/BotaoBack.png" alt="voltar" class="back-btn" onclick="window.location.href='conversas.html'" />
+
+    <img src="assets/Botaologout.png" alt="logout" class="logout-btn" onclick="logout()" />
+  </header>
+
+  <div class="wrapper">
+    <div class="container">
+      <img src="assets/Bull.png" alt="icon" class="bull" />
+    </div>
+    <div class="chat-container">
+      <div class="messages"></div>
+    </div>
+  </div>
+
+  <div class="input-container">
+    <input type="text" class="input-text" placeholder="Tire sua dúvida..." />
+    <button class="send-btn">
+      <img src="assets/BotaoSend.png" alt="Enviar" class="send-icon"/>
+    </button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
