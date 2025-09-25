@@ -196,5 +196,5 @@ Aqui o seu rebanho vem em primeiro lugar. Nosso objetivo é deixar a sua vida no
 function logout() {
   localStorage.removeItem('session_id');  // Remove ID da sessão
   localStorage.removeItem('conversa_id'); // Remove ID da conversa
-  window.location.href = 'login.html';    // Redireciona para tela de login
+  window.location.href = 'index.html';    // Redireciona para tela de login
 }
