@@ -23,9 +23,9 @@ CORS(app, supports_credentials=True)  # Habilita CORS (permite chamadas de outro
 app.config["JSON_AS_ASCII"] = False   # Permite caracteres UTF-8 (acentos no JSON)
 app.secret_key = os.getenv("SECRET_KEY", "chave_super_secreta_padrao")  # Chave secreta para sessões
 
-# ==============================
+# ===============================
 # BANCO DE DADOS
-# ==============================
+# ===============================
 
 def init_db():
    # Cria tabelas caso ainda não existam
