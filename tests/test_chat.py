@@ -4,7 +4,6 @@ from contextlib import closing
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-import main
 from conftest import register_and_login
 
 
@@ -49,7 +48,7 @@ def test_producer_context_is_omitted_for_legacy_users(app, client, fake_llm):
     assert "ignore as instruções" not in system
 
 
-def test_history_limited_to_last_n_messages(client, fake_llm):
+def test_history_limited_to_last_n_messages(app, client, fake_llm):
     register_and_login(client)
     conversa = send(client, "pergunta 0").get_json()["conversa_id"]
     for i in range(1, 8):
@@ -57,7 +56,7 @@ def test_history_limited_to_last_n_messages(client, fake_llm):
 
     messages = fake_llm.calls[-1]
     history = messages[1:-1]
-    assert len(history) == main.HISTORY_MAX_MESSAGES == 10
+    assert len(history) == app.config["HISTORY_MAX_MESSAGES"] == 10
     # Only the most recent turns (pergunta 2..6) are sent, oldest first.
     humans = [m.content for m in history if isinstance(m, HumanMessage)]
     assert humans == [f"pergunta {i}" for i in range(2, 7)]
@@ -65,8 +64,8 @@ def test_history_limited_to_last_n_messages(client, fake_llm):
 
 
 @pytest.mark.parametrize("limite,esperado", [(0, 0), (3, 3), (4, 4)])
-def test_history_limit_is_configurable(client, fake_llm, monkeypatch, limite, esperado):
-    monkeypatch.setattr(main, "HISTORY_MAX_MESSAGES", limite)
+def test_history_limit_is_configurable(app, client, fake_llm, limite, esperado):
+    app.config["HISTORY_MAX_MESSAGES"] = limite
     register_and_login(client)
     conversa = send(client, "p0").get_json()["conversa_id"]
     for i in range(1, 4):
@@ -82,12 +81,15 @@ def test_new_conversation_does_not_inherit_previous_context(client, fake_llm):
     assert len(messages) == 2  # system + question only
 
 
-def test_history_survives_restart(client, fake_llm):
-    # Memory is rebuilt from the database; nothing is kept in process memory.
+def test_history_survives_restart(client, make_app, fake_llm):
+    # Memory is rebuilt from the database: a brand-new app instance on the
+    # same database (a restart) still sends the previous turn to the model.
     register_and_login(client)
     conversa = send(client, "Antes do reinício").get_json()["conversa_id"]
-    assert not hasattr(main, "store")
-    send(client, "Depois", conversa_id=conversa)
+
+    restarted = make_app().test_client()
+    assert restarted.post("/login", json={"email": "a@example.com", "senha": "senha-segura-1"}).status_code == 200
+    send(restarted, "Depois", conversa_id=conversa)
     assert fake_llm.calls[-1][1].content == "Antes do reinício"
 
 

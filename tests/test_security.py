@@ -1,7 +1,7 @@
 import pytest
 from openai import APIConnectionError
 
-import main
+from api.services.llm import create_llm
 from conftest import login, register, register_and_login
 
 
@@ -141,12 +141,12 @@ def test_login_wrong_password(client):
     assert login(client, email="ninguem@example.com").status_code == 401
 
 
-def test_message_length_limit(client, fake_llm):
+def test_message_length_limit(app, client, fake_llm):
     register_and_login(client)
-    assert send(client, "x" * (main.MAX_MESSAGE_CHARS + 1)).status_code == 400
+    assert send(client, "x" * (app.config["MAX_MESSAGE_CHARS"] + 1)).status_code == 400
     assert send(client, "   ").status_code == 400
     assert fake_llm.calls == []
-    assert send(client, "x" * main.MAX_MESSAGE_CHARS).status_code == 200
+    assert send(client, "x" * app.config["MAX_MESSAGE_CHARS"]).status_code == 200
 
 
 def test_invalid_conversa_id_rejected(client, fake_llm):
@@ -190,7 +190,8 @@ def test_llm_error_returns_friendly_message(client, fake_llm):
     assert "Connection" not in body["erro"]
 
 
-def test_llm_has_cost_limits_and_unchanged_model():
-    assert main.llm.model_name == "gpt-4o-mini"
-    assert main.llm.temperature == 0.7
-    assert main.llm.max_tokens == main.LLM_MAX_TOKENS
+def test_llm_has_cost_limits_and_unchanged_model(app):
+    llm = create_llm(app.config["LLM_MAX_TOKENS"])
+    assert llm.model_name == "gpt-4o-mini"
+    assert llm.temperature == 0.7
+    assert llm.max_tokens == app.config["LLM_MAX_TOKENS"] == 1024

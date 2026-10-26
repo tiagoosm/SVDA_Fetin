@@ -1,22 +1,17 @@
 import os
-import sys
-import tempfile
+
 import pytest
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
-# Environment must be set before the app module is imported.
-_TMP_DIR = tempfile.mkdtemp(prefix="svda-tests-")
-os.environ["APP_ENV"] = "testing"
-os.environ["SECRET_KEY"] = "test-secret-key"
-os.environ["DATABASE_PATH"] = os.path.join(_TMP_DIR, "import.db")
 # Dummy key and unroutable base URL: a real OpenAI call can never succeed from tests.
 os.environ["OPENAI_API_KEY"] = "sk-test-not-a-real-key"
 os.environ["OPENAI_BASE_URL"] = "http://127.0.0.1:9/v1"
+os.environ["APP_ENV"] = "testing"
+os.environ["SECRET_KEY"] = "test-secret-key"
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "api"))
-
-import main  # noqa: E402
+from api import create_app  # noqa: E402
+from api.extensions import limiter  # noqa: E402
 
 
 class FakeLLM:
@@ -36,27 +31,32 @@ class FakeLLM:
 
 
 @pytest.fixture
-def app(tmp_path, monkeypatch):
-    main.app.config.update(TESTING=True, DATABASE_PATH=str(tmp_path / "test.db"))
-    main.init_db()
-    main.limiter.reset()
-    yield main.app
+def fake_llm():
+    return FakeLLM()
 
 
 @pytest.fixture
-def fake_llm(monkeypatch):
-    fake = FakeLLM()
-    monkeypatch.setattr(main, "llm", fake.runnable)
-    return fake
+def make_app(tmp_path, fake_llm):
+    def factory(**overrides):
+        config = {"TESTING": True, "DATABASE_PATH": str(tmp_path / "test.db"), **overrides}
+        return create_app(config, llm=fake_llm.runnable)
+    return factory
 
 
 @pytest.fixture
-def client(app, fake_llm):
+def app(make_app):
+    app = make_app()
+    limiter.reset()
+    yield app
+
+
+@pytest.fixture
+def client(app):
     return app.test_client()
 
 
 @pytest.fixture
-def make_client(app, fake_llm):
+def make_client(app):
     return app.test_client
 
 

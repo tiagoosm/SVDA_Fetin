@@ -3,7 +3,7 @@ from contextlib import closing
 
 import pytest
 
-import main
+from api.db.schema import init_db
 from conftest import login, register
 
 
@@ -39,8 +39,8 @@ def test_migration_adds_profile_columns_idempotently(app):
         conn.execute("CREATE TABLE usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, senha TEXT NOT NULL)")
         conn.execute("INSERT INTO usuarios (email, senha) VALUES ('antigo@example.com', 'hash')")
 
-    main.init_db()
-    main.init_db()  # running twice must be harmless
+    init_db(path)
+    init_db(path)  # running twice must be harmless
 
     with closing(sqlite3.connect(path)) as conn:
         cols = [row[1] for row in conn.execute("PRAGMA table_info(usuarios)")]
