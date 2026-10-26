@@ -19,10 +19,8 @@ from openai import OpenAIError                # Erros da API da OpenAI
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash  # Hash de senhas
 from langchain_openai import ChatOpenAI       # Integração com modelo OpenAI
+from langchain_core.messages import AIMessage, HumanMessage  # Mensagens do histórico
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder  # Construção de prompt
-from langchain_core.runnables.history import RunnableWithMessageHistory    # Histórico de conversas
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_community.chat_message_histories import ChatMessageHistory  # Armazena histórico
 
 # ==============================
 # CONFIGURAÇÃO
@@ -60,6 +58,14 @@ MAX_PASSWORD_LENGTH = 128
 MAX_EMAIL_LENGTH = 254
 MAX_MESSAGE_CHARS = env_int("MAX_MESSAGE_CHARS", 2000)
 LLM_MAX_TOKENS = env_int("LLM_MAX_TOKENS", 1024)
+# Quantas mensagens anteriores da conversa (perguntas + respostas) vão para o modelo
+HISTORY_MAX_MESSAGES = env_int("HISTORY_MAX_MESSAGES", 10)
+MAX_NAME_LENGTH = 100
+
+# Listas fechadas do cadastro. Só estes valores são aceitos e só eles
+# chegam ao prompt (evita injeção de prompt pelos campos do cadastro).
+TAMANHOS_REBANHO = {"Pequeno": "pequeno", "Médio": "médio", "Grande": "grande"}
+TIPOS_GADO = {"Leite": "de leite", "Corte": "de corte", "Outro": "de outro tipo"}
 
 # Rate limiting (sintaxe do Flask-Limiter, ex.: "5 per minute;30 per hour")
 RATE_LIMIT_LOGIN = os.getenv("RATE_LIMIT_LOGIN", "5 per minute;30 per hour")
@@ -143,9 +149,19 @@ def init_db():
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 email TEXT UNIQUE NOT NULL,
-                senha TEXT NOT NULL
+                senha TEXT NOT NULL,
+                nome TEXT,
+                tamanho_rebanho TEXT,
+                tipo_gado TEXT
             )
         """)
+
+        # Migração para bancos criados antes dos campos de perfil (idempotente)
+        colunas = {row[1] for row in cursor.execute("PRAGMA table_info(usuarios)")}
+        for coluna in ("nome", "tamanho_rebanho", "tipo_gado"):
+            if coluna not in colunas:
+                cursor.execute(f"ALTER TABLE usuarios ADD COLUMN {coluna} TEXT")
+                logger.info("Database migrated: added usuarios.%s", coluna)
 
         # Tabela de histórico de conversas
         cursor.execute("""
@@ -398,11 +414,9 @@ Deseja também orientações sobre o calendário de vacinação?
 “Preciso de dieta barata só para manter as vacas até a chuva chegar.”
 
 “Quero saber quais vacinas são obrigatórias para bezerros.”
-Histórico da conversa:
-{history}
 
-Entrada do usuário:
-{input}"""
+Suas orientações não substituem a avaliação de um médico-veterinário ou zootecnista; lembre o produtor disso quando o caso exigir atendimento profissional.
+{contexto_produtor}"""
 
 # ==============================
 # CONFIGURAÇÃO DO LLM (IA)
@@ -417,29 +431,59 @@ prompt = ChatPromptTemplate.from_messages([
 # Modelo OpenAI usado (GPT-4o-mini). max_tokens limita o custo de cada resposta.
 
 llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini", max_tokens=LLM_MAX_TOKENS)
-chain = prompt | llm  # Junta o prompt com o modelo
+
+
+def gerar_resposta(pergunta, historico, contexto_produtor=""):
+    # Junta o prompt com o modelo e faz UMA chamada ao LLM
+    chain = prompt | llm
+    resposta = chain.invoke({
+        "input": pergunta,
+        "history": historico,
+        "contexto_produtor": contexto_produtor,
+    })
+    return resposta.content
 
 # ==============================
 # GERENCIAMENTO DE HISTÓRICO
 # ==============================
+# A memória é por (usuário, conversa) e é reconstruída a partir da tabela
+# historico, então sobrevive a reinícios do servidor. Só as últimas
+# HISTORY_MAX_MESSAGES mensagens são enviadas ao modelo (controle de custo).
 
-store = {}  # Dicionário em memória para guardar históricos
+def carregar_historico(usuario_id, conversa_id, limite=None):
+    limite = HISTORY_MAX_MESSAGES if limite is None else limite
+    if limite <= 0:
+        return []
+    pares = (limite + 1) // 2  # Cada registro tem uma pergunta e uma resposta
+    with closing(get_connection()) as conn:
+        registros = conn.execute("""
+            SELECT pergunta, resposta
+            FROM historico
+            WHERE usuario_id = ? AND conversa_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+        """, (usuario_id, conversa_id, pares)).fetchall()
 
-def get_session_history(session_id: str) -> BaseChatMessageHistory:
+    mensagens = []
+    for pergunta, resposta in reversed(registros):
+        mensagens.append(HumanMessage(content=pergunta or ""))
+        mensagens.append(AIMessage(content=resposta or ""))
+    return mensagens[-limite:]
 
-    #Cria ou recupera histórico de uma sessão
 
-    if session_id not in store:
-        store[session_id] = ChatMessageHistory()
-    return store[session_id]
-
-# Integra a cadeia com histórico de mensagens
-chain_with_history = RunnableWithMessageHistory(
-    chain,
-    get_session_history,
-    input_messages_key="input",
-    history_messages_key="history"
-)
+def contexto_do_produtor(usuario_id):
+    # Monta a linha de contexto apenas a partir das listas fechadas
+    with closing(get_connection()) as conn:
+        row = conn.execute(
+            "SELECT tamanho_rebanho, tipo_gado FROM usuarios WHERE id = ?", (usuario_id,)
+        ).fetchone()
+    if not row:
+        return ""
+    porte = TAMANHOS_REBANHO.get(row[0])
+    tipo = TIPOS_GADO.get(row[1])
+    if not porte or not tipo:
+        return ""
+    return f"O produtor tem rebanho {tipo}, de porte {porte}."
 
 # ==============================
 # AUTENTICAÇÃO E VALIDAÇÃO
@@ -482,6 +526,21 @@ def validar_credenciais(data):
     return email, senha, None
 
 
+def validar_perfil(data):
+    nome = data.get("nome")
+    tamanho = data.get("tamanho_rebanho")
+    tipo = data.get("tipo_gado")
+    if not isinstance(nome, str) or not nome.strip():
+        return None, "Nome é obrigatório"
+    if len(nome.strip()) > MAX_NAME_LENGTH:
+        return None, f"O nome deve ter no máximo {MAX_NAME_LENGTH} caracteres"
+    if tamanho not in TAMANHOS_REBANHO:
+        return None, "Tamanho do rebanho inválido"
+    if tipo not in TIPOS_GADO:
+        return None, "Tipo de gado inválido"
+    return {"nome": nome.strip(), "tamanho_rebanho": tamanho, "tipo_gado": tipo}, None
+
+
 def conversa_id_valido(valor):
     try:
         return str(uuid.UUID(valor)) == valor.lower()
@@ -520,11 +579,17 @@ def register():
         return jsonify({"erro": erro}), 400
     if len(senha) < MIN_PASSWORD_LENGTH:
         return jsonify({"erro": f"A senha deve ter pelo menos {MIN_PASSWORD_LENGTH} caracteres"}), 400
+    perfil, erro = validar_perfil(data)
+    if erro:
+        return jsonify({"erro": erro}), 400
 
     senha_hash = generate_password_hash(senha)  # Cria hash da senha
     try:
         with closing(get_connection()) as conn, conn:
-            conn.execute("INSERT INTO usuarios (email, senha) VALUES (?, ?)", (email, senha_hash))
+            conn.execute(
+                "INSERT INTO usuarios (email, senha, nome, tamanho_rebanho, tipo_gado) VALUES (?, ?, ?, ?, ?)",
+                (email, senha_hash, perfil["nome"], perfil["tamanho_rebanho"], perfil["tipo_gado"]),
+            )
     except sqlite3.IntegrityError:
         return jsonify({"erro": "Email já cadastrado"}), 409
     return jsonify({"mensagem": "Usuário registrado com sucesso"}), 201
@@ -572,11 +637,20 @@ def logout():
 @login_required
 def me():
     with closing(get_connection()) as conn:
-        user = conn.execute("SELECT id, email FROM usuarios WHERE id = ?", (g.usuario_id,)).fetchone()
+        user = conn.execute(
+            "SELECT id, email, nome, tamanho_rebanho, tipo_gado FROM usuarios WHERE id = ?",
+            (g.usuario_id,),
+        ).fetchone()
     if not user:
         session.clear()
         return jsonify({"erro": "Usuário não autenticado"}), 401
-    return jsonify({"usuario_id": user[0], "email": user[1]})
+    return jsonify({
+        "usuario_id": user[0],
+        "email": user[1],
+        "nome": user[2],
+        "tamanho_rebanho": user[3],
+        "tipo_gado": user[4],
+    })
 
 # ------------------------------
 # Enviar mensagem ao chatbot
@@ -602,17 +676,16 @@ def responder():
     if not conversa_id_valido(conversa_id):
         return jsonify({"erro": "conversa_id inválido"}), 400
 
-    # Chama o modelo com histórico
+    # Chama o modelo com o histórico desta conversa (últimas N mensagens)
     try:
-        resposta = chain_with_history.invoke(
-            {"input": pergunta_usuario},
-            config={"configurable": {"session_id": str(usuario_id)}}
+        texto_resposta = gerar_resposta(
+            pergunta_usuario,
+            carregar_historico(usuario_id, conversa_id),
+            contexto_do_produtor(usuario_id),
         )
     except OpenAIError:
         logger.exception("LLM request failed (user_id=%s)", usuario_id)
         return jsonify({"erro": "O assistente está indisponível no momento. Tente novamente em instantes."}), 502
-
-    texto_resposta = resposta.content
 
     # Salva no banco
     try:
@@ -640,13 +713,13 @@ def listar_conversas():
             SELECT h.conversa_id, h.pergunta, h.resposta, h.data
             FROM historico h
             JOIN (
-                SELECT conversa_id, MIN(data) AS primeira_data
+                SELECT MIN(id) AS primeiro_id
                 FROM historico
                 WHERE usuario_id = ?
                 GROUP BY conversa_id
-            ) p ON h.conversa_id = p.conversa_id AND h.data = p.primeira_data
+            ) p ON h.id = p.primeiro_id
             WHERE h.usuario_id = ?
-            ORDER BY p.primeira_data DESC
+            ORDER BY h.id DESC
         """, (usuario_id, usuario_id)).fetchall()
 
     # Monta resposta resumida
@@ -681,14 +754,14 @@ def historico():
                 SELECT pergunta, resposta, data
                 FROM historico
                 WHERE usuario_id = ? AND conversa_id = ?
-                ORDER BY data ASC
+                ORDER BY id ASC
             """, (usuario_id, conversa_id)).fetchall()
         else:
             registros = conn.execute("""
                 SELECT pergunta, resposta, data
                 FROM historico
                 WHERE usuario_id = ?
-                ORDER BY data ASC
+                ORDER BY id ASC
             """, (usuario_id,)).fetchall()
 
     return jsonify({

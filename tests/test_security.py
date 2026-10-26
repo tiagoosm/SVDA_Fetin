@@ -45,7 +45,7 @@ def test_user_cannot_read_other_users_history_or_conversations(make_client):
     assert len(bob.get("/conversas").get_json()["conversas"]) == 1
 
 
-def test_message_cannot_be_attributed_to_another_user(make_client, fake_chain):
+def test_message_cannot_be_attributed_to_another_user(make_client, fake_llm):
     alice, bob = make_client(), make_client()
     register_and_login(alice, "alice@example.com")
     register_and_login(bob, "bob@example.com")
@@ -53,8 +53,20 @@ def test_message_cannot_be_attributed_to_another_user(make_client, fake_chain):
     # Old exploit: send session_id of another user in the body.
     assert send(alice, "Oi", session_id="2").status_code == 200
     assert bob.get("/conversas").get_json()["conversas"] == []
-    # LLM memory is keyed by the authenticated user, not the body field.
-    assert fake_chain.calls[-1][1]["configurable"]["session_id"] == "1"
+    assert len(alice.get("/conversas").get_json()["conversas"]) == 1
+
+
+def test_cannot_continue_another_users_conversation(make_client, fake_llm):
+    alice, bob = make_client(), make_client()
+    register_and_login(alice, "alice@example.com")
+    register_and_login(bob, "bob@example.com")
+    bob_conversa = send(bob, "Segredo do Bob").get_json()["conversa_id"]
+
+    # Alice reuses Bob's conversa_id: Bob's messages must not reach the model.
+    assert send(alice, "Oi", conversa_id=bob_conversa).status_code == 200
+    sent = " ".join(m.content for m in fake_llm.calls[-1])
+    assert "Segredo do Bob" not in sent
+    assert len(bob.get(f"/historico?conversa_id={bob_conversa}").get_json()["historico"]) == 1
 
 
 # ---------- Authentication required ----------
@@ -69,11 +81,11 @@ def test_message_cannot_be_attributed_to_another_user(make_client, fake_chain):
         ("get", "/me"),
     ],
 )
-def test_protected_routes_require_authentication(client, fake_chain, method, path):
+def test_protected_routes_require_authentication(client, fake_llm, method, path):
     kwargs = {"json": {"mensagem": "oi", "session_id": "1"}} if method == "post" else {}
     resp = getattr(client, method)(f"{path}?session_id=1", headers={"X-Session-Id": "1"}, **kwargs)
     assert resp.status_code == 401
-    assert fake_chain.calls == []
+    assert fake_llm.calls == []
 
 
 def test_logout_ends_session(client):
@@ -129,18 +141,18 @@ def test_login_wrong_password(client):
     assert login(client, email="ninguem@example.com").status_code == 401
 
 
-def test_message_length_limit(client, fake_chain):
+def test_message_length_limit(client, fake_llm):
     register_and_login(client)
     assert send(client, "x" * (main.MAX_MESSAGE_CHARS + 1)).status_code == 400
     assert send(client, "   ").status_code == 400
-    assert fake_chain.calls == []
+    assert fake_llm.calls == []
     assert send(client, "x" * main.MAX_MESSAGE_CHARS).status_code == 200
 
 
-def test_invalid_conversa_id_rejected(client, fake_chain):
+def test_invalid_conversa_id_rejected(client, fake_llm):
     register_and_login(client)
     assert send(client, conversa_id="../../etc").status_code == 400
-    assert fake_chain.calls == []
+    assert fake_llm.calls == []
 
 
 # ---------- Rate limiting ----------
@@ -153,7 +165,7 @@ def test_login_rate_limited(client):
     assert "erro" in login(client).get_json()
 
 
-def test_message_rate_limited_per_user(make_client, fake_chain):
+def test_message_rate_limited_per_user(make_client, fake_llm):
     alice, bob = make_client(), make_client()
     register_and_login(alice, "alice@example.com")
     register_and_login(bob, "bob@example.com")
@@ -163,14 +175,14 @@ def test_message_rate_limited_per_user(make_client, fake_chain):
     assert codes[10] == 429
     # Another user is not affected.
     assert send(bob).status_code == 200
-    assert len(fake_chain.calls) == 11
+    assert len(fake_llm.calls) == 11
 
 
 # ---------- LLM errors ----------
 
-def test_llm_error_returns_friendly_message(client, fake_chain):
+def test_llm_error_returns_friendly_message(client, fake_llm):
     register_and_login(client)
-    fake_chain.error = APIConnectionError(request=None)
+    fake_llm.error = APIConnectionError(request=None)
     resp = send(client)
     assert resp.status_code == 502
     body = resp.get_json()
