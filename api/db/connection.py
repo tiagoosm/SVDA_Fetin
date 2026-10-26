@@ -1,4 +1,5 @@
 """Conexão com o SQLite."""
+
 import sqlite3
 from contextlib import contextmanager
 

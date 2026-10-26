@@ -1,4 +1,5 @@
 """Cadastro, login, logout e usuário atual."""
+
 import logging
 import secrets
 import sqlite3

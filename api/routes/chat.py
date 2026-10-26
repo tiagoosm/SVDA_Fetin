@@ -1,10 +1,11 @@
 """Envio de mensagens ao assistente."""
+
 import logging
 import sqlite3
 import uuid
 
 from flask import Blueprint, current_app, g, jsonify
-from openai import OpenAIError
+from openai import APITimeoutError, OpenAIError, RateLimitError
 
 from ..db import repositories
 from ..extensions import limiter, rate_limit_user_key
@@ -40,7 +41,11 @@ def responder():
             carregar_historico(usuario_id, conversa_id),
             contexto_do_produtor(repositories.get_user(usuario_id)),
         )
+    except (RateLimitError, APITimeoutError):
+        logger.exception("LLM busy or timed out (user_id=%s)", usuario_id)
+        return jsonify({"erro": "O assistente está muito ocupado agora. Tente novamente em instantes."}), 503
     except OpenAIError:
+        # Detalhes (chave inválida, cota etc.) ficam só no log do servidor
         logger.exception("LLM request failed (user_id=%s)", usuario_id)
         return jsonify({"erro": "O assistente está indisponível no momento. Tente novamente em instantes."}), 502
 

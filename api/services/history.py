@@ -4,6 +4,7 @@ A memória é por (usuário, conversa) e é reconstruída a partir da tabela
 historico, então sobrevive a reinícios do servidor. Só as últimas
 HISTORY_MAX_MESSAGES mensagens são enviadas ao modelo (controle de custo).
 """
+
 from flask import current_app
 from langchain_core.messages import AIMessage, HumanMessage
 

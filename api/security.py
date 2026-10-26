@@ -1,4 +1,5 @@
 """Autenticação por sessão e validação de entrada."""
+
 import re
 import uuid
 from functools import wraps
@@ -19,6 +20,7 @@ def login_required(view):
             return jsonify({"erro": "Usuário não autenticado"}), 401
         g.usuario_id = usuario_id
         return view(*args, **kwargs)
+
     return wrapper
 
 

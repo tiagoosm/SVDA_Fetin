@@ -1,4 +1,5 @@
 """Criação e migração do schema."""
+
 import logging
 import os
 

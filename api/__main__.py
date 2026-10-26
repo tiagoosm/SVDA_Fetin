@@ -1,4 +1,5 @@
 """Servidor de desenvolvimento: python -m api"""
+
 import os
 
 from dotenv import load_dotenv

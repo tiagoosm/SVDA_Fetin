@@ -1,15 +1,17 @@
 """API do SVDA: app factory."""
-import logging
+
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify
+from flask import Flask
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import load_config, validate_config
 from .db.schema import init_db
+from .errors import register_error_handlers
 from .extensions import limiter
+from .logging_config import register_request_logging, setup_logging
 from .routes import auth, chat, conversations
 
 
@@ -20,10 +22,7 @@ def create_app(overrides=None, llm=None):
     llm: modelo de chat a usar no lugar do ChatOpenAI (testes).
     """
     load_dotenv()  # Carrega variáveis do arquivo .env
-    logging.basicConfig(
-        level=os.getenv("LOG_LEVEL", "INFO").upper(),
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    setup_logging(os.getenv("LOG_LEVEL", "INFO"), os.getenv("LOG_FORMAT", "text"))
 
     config = load_config()
     config.update(overrides or {})
@@ -54,9 +53,8 @@ def create_app(overrides=None, llm=None):
         # Health check público; não expõe dados
         return "Servidor rodando!"
 
-    @app.errorhandler(429)
-    def rate_limit_excedido(_error):
-        return jsonify({"erro": "Muitas requisições. Aguarde um pouco e tente novamente."}), 429
+    register_request_logging(app)
+    register_error_handlers(app)
 
     init_db(app.config["DATABASE_PATH"])  # Inicializa o banco na primeira execução
     return app

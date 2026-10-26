@@ -1,4 +1,5 @@
 """Configuração lida das variáveis de ambiente (com padrões seguros)."""
+
 import logging
 import os
 import secrets
@@ -16,10 +17,7 @@ MAX_PASSWORD_LENGTH = 128
 MAX_EMAIL_LENGTH = 254
 MAX_NAME_LENGTH = 100
 
-DEV_CORS_ORIGINS = (
-    "http://localhost:8080,http://127.0.0.1:8080,"
-    "http://localhost:5500,http://127.0.0.1:5500"
-)
+DEV_CORS_ORIGINS = "http://localhost:8080,http://127.0.0.1:8080,http://localhost:5500,http://127.0.0.1:5500"
 
 
 def env_bool(name, default):
@@ -73,6 +71,7 @@ def load_config():
         "MIN_PASSWORD_LENGTH": env_int("MIN_PASSWORD_LENGTH", 8),
         "MAX_MESSAGE_CHARS": env_int("MAX_MESSAGE_CHARS", 2000),
         "LLM_MAX_TOKENS": env_int("LLM_MAX_TOKENS", 1024),
+        "LLM_TIMEOUT_SECONDS": env_int("LLM_TIMEOUT_SECONDS", 30),
         # Quantas mensagens anteriores da conversa (perguntas + respostas) vão para o modelo
         "HISTORY_MAX_MESSAGES": env_int("HISTORY_MAX_MESSAGES", 10),
         # Rate limiting (sintaxe do Flask-Limiter, ex.: "5 per minute;30 per hour")
