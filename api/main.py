@@ -1,12 +1,22 @@
 # ==============================
 # BIBLIOTECAS
 # ==============================
-import os  #usado para trabalhar com variaveis de ambiente para manipular caminhos de arquivos
-import uuid #usado para gerar IDs temporarios de usuarios
-from dotenv import load_dotenv                # Para carregar variáveis de ambiente (.env)
-from flask import Flask, request, jsonify, session  # Framework web para criar a API
-from flask_cors import CORS                   # Para liberar acesso de outros domínios
+import logging                                # Logs da aplicação
+import os                                     # Variáveis de ambiente e caminhos de arquivos
+import re                                     # Validação de e-mail
+import secrets                                # Chave aleatória em desenvolvimento
 import sqlite3                                # Banco de dados SQLite
+import uuid                                   # IDs de conversa
+from contextlib import closing
+from functools import wraps
+
+from dotenv import load_dotenv                # Para carregar variáveis de ambiente (.env)
+from flask import Flask, g, jsonify, request, session  # Framework web para criar a API
+from flask_cors import CORS                   # Libera acesso apenas das origens permitidas
+from flask_limiter import Limiter             # Rate limiting
+from flask_limiter.util import get_remote_address
+from openai import OpenAIError                # Erros da API da OpenAI
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash  # Hash de senhas
 from langchain_openai import ChatOpenAI       # Integração com modelo OpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder  # Construção de prompt
@@ -15,46 +25,140 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory  # Armazena histórico
 
 # ==============================
-# CONFIGURAÇÃO FLASK
+# CONFIGURAÇÃO
 # ==============================
 load_dotenv()  # Carrega variáveis do arquivo .env
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger("svda")
+
+
+def env_bool(name, default):
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def env_int(name, default):
+    value = os.getenv(name)
+    return int(value) if value and value.strip() else default
+
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Ambiente: "production" (padrão seguro), "development" ou "testing"
+APP_ENV = os.getenv("APP_ENV", "production").strip().lower()
+IS_PRODUCTION = APP_ENV == "production"
+
+# Limites de entrada e de custo
+MIN_PASSWORD_LENGTH = env_int("MIN_PASSWORD_LENGTH", 8)
+MAX_PASSWORD_LENGTH = 128
+MAX_EMAIL_LENGTH = 254
+MAX_MESSAGE_CHARS = env_int("MAX_MESSAGE_CHARS", 2000)
+LLM_MAX_TOKENS = env_int("LLM_MAX_TOKENS", 1024)
+
+# Rate limiting (sintaxe do Flask-Limiter, ex.: "5 per minute;30 per hour")
+RATE_LIMIT_LOGIN = os.getenv("RATE_LIMIT_LOGIN", "5 per minute;30 per hour")
+RATE_LIMIT_REGISTER = os.getenv("RATE_LIMIT_REGISTER", "10 per hour")
+RATE_LIMIT_MESSAGE = os.getenv("RATE_LIMIT_MESSAGE", "10 per minute;200 per day")
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+# ==============================
+# CONFIGURAÇÃO FLASK
+# ==============================
 app = Flask(__name__)
-CORS(app, supports_credentials=True)  # Habilita CORS (permite chamadas de outros domínios)
-app.config["JSON_AS_ASCII"] = False   # Permite caracteres UTF-8 (acentos no JSON)
-app.secret_key = os.getenv("SECRET_KEY", "chave_super_secreta_padrao")  # Chave secreta para sessões
+app.json.ensure_ascii = False  # Permite caracteres UTF-8 (acentos no JSON)
+
+secret_key = os.getenv("SECRET_KEY")
+if not secret_key:
+    if IS_PRODUCTION:
+        raise RuntimeError("SECRET_KEY must be set when APP_ENV=production")
+    secret_key = secrets.token_hex(32)
+    logger.warning("SECRET_KEY not set; using a random key (sessions are lost on restart)")
+app.secret_key = secret_key
+
+app.config.update(
+    DATABASE_PATH=os.getenv("DATABASE_PATH", os.path.join(BASE_DIR, "banco.db")),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE=os.getenv("SESSION_COOKIE_SAMESITE", "Lax"),
+    SESSION_COOKIE_SECURE=env_bool("SESSION_COOKIE_SECURE", IS_PRODUCTION),
+)
+if app.config["SESSION_COOKIE_SAMESITE"] == "None" and not app.config["SESSION_COOKIE_SECURE"]:
+    raise RuntimeError("SESSION_COOKIE_SAMESITE=None requires SESSION_COOKIE_SECURE=true")
+
+# Atrás de um proxy reverso (nginx), confia em N saltos de X-Forwarded-For
+# para que o rate limiting enxergue o IP real do cliente.
+proxy_hops = env_int("PROXY_FIX_X_FOR", 0)
+if proxy_hops > 0:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_hops, x_proto=proxy_hops)
+
+# CORS: somente origens listadas em CORS_ORIGINS (separadas por vírgula)
+DEV_CORS_ORIGINS = (
+    "http://localhost:8080,http://127.0.0.1:8080,"
+    "http://localhost:5500,http://127.0.0.1:5500"
+)
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "" if IS_PRODUCTION else DEV_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
+if "*" in cors_origins:
+    raise RuntimeError("CORS_ORIGINS cannot contain '*' because credentials are enabled")
+CORS(app, origins=cors_origins, supports_credentials=True)
+
+
+def rate_limit_user_key():
+    # Usuário autenticado é limitado pelo ID; sem sessão, pelo IP
+    usuario_id = session.get("usuario_id")
+    return f"user:{usuario_id}" if usuario_id else get_remote_address()
+
+
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
+    headers_enabled=True,
+)
 
 # ===============================
 # BANCO DE DADOS
 # ===============================
 
+def get_connection():
+    return sqlite3.connect(app.config["DATABASE_PATH"])
+
+
 def init_db():
    # Cria tabelas caso ainda não existam
-    conn = sqlite3.connect("banco.db")
-    cursor = conn.cursor()
+    with closing(get_connection()) as conn, conn:
+        cursor = conn.cursor()
 
-    # Tabela de usuários
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL
-        )
-    """)
+        # Tabela de usuários
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                senha TEXT NOT NULL
+            )
+        """)
 
-    # Tabela de histórico de conversas
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS historico (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER,
-            conversa_id TEXT,
-            pergunta TEXT,
-            resposta TEXT,
-            data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
-        )
-    """)
-    conn.commit()
-    conn.close()
+        # Tabela de histórico de conversas
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS historico (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                usuario_id INTEGER,
+                conversa_id TEXT,
+                pergunta TEXT,
+                resposta TEXT,
+                data TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(usuario_id) REFERENCES usuarios(id)
+            )
+        """)
 
 # Inicializa o banco na primeira execução
 init_db()
@@ -310,9 +414,9 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}")               # Entrada do usuário
 ])
 
-# Modelo OpenAI usado (GPT-4o-mini)
+# Modelo OpenAI usado (GPT-4o-mini). max_tokens limita o custo de cada resposta.
 
-llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini")
+llm = ChatOpenAI(temperature=0.7, model="gpt-4o-mini", max_tokens=LLM_MAX_TOKENS)
 chain = prompt | llm  # Junta o prompt com o modelo
 
 # ==============================
@@ -338,14 +442,66 @@ chain_with_history = RunnableWithMessageHistory(
 )
 
 # ==============================
+# AUTENTICAÇÃO E VALIDAÇÃO
+# ==============================
+
+# Hash usado quando o e-mail não existe, para o tempo de resposta do login
+# não revelar quais e-mails estão cadastrados.
+DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_hex(16))
+
+
+def login_required(view):
+    # O usuário vem SEMPRE da sessão assinada no servidor, nunca do cliente
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        usuario_id = session.get("usuario_id")
+        if not isinstance(usuario_id, int):
+            return jsonify({"erro": "Usuário não autenticado"}), 401
+        g.usuario_id = usuario_id
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def json_body():
+    # Exige JSON (Content-Type: application/json), o que também força o
+    # preflight de CORS em requisições vindas de outras origens.
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
+
+
+def validar_credenciais(data):
+    email = data.get("email")
+    senha = data.get("senha")
+    if not isinstance(email, str) or not isinstance(senha, str) or not email.strip() or not senha:
+        return None, None, "Email e senha são obrigatórios"
+    email = email.strip()
+    if len(email) > MAX_EMAIL_LENGTH or not EMAIL_RE.match(email):
+        return None, None, "Email inválido"
+    if len(senha) > MAX_PASSWORD_LENGTH:
+        return None, None, f"A senha deve ter no máximo {MAX_PASSWORD_LENGTH} caracteres"
+    return email, senha, None
+
+
+def conversa_id_valido(valor):
+    try:
+        return str(uuid.UUID(valor)) == valor.lower()
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
+@app.errorhandler(429)
+def rate_limit_excedido(_error):
+    return jsonify({"erro": "Muitas requisições. Aguarde um pouco e tente novamente."}), 429
+
+# ==============================
 # ROTAS FLASK
 # ==============================
 
 @app.route("/")
 def home():
 
-    #Página inicial para teste
-    
+    # Health check público; não expõe dados
+
     return "Servidor rodando!"
 
 # ------------------------------
@@ -353,88 +509,120 @@ def home():
 # ------------------------------
 
 @app.route("/register", methods=["POST"])
+@limiter.limit(RATE_LIMIT_REGISTER)
 def register():
-    data = request.get_json()
-    email = data.get("email")
-    senha = data.get("senha")
+    data = json_body()
+    if data is None:
+        return jsonify({"erro": "Requisição inválida"}), 400
 
-    if not email or not senha:
-        return jsonify({"erro": "Email e senha são obrigatórios"}), 400
+    email, senha, erro = validar_credenciais(data)
+    if erro:
+        return jsonify({"erro": erro}), 400
+    if len(senha) < MIN_PASSWORD_LENGTH:
+        return jsonify({"erro": f"A senha deve ter pelo menos {MIN_PASSWORD_LENGTH} caracteres"}), 400
 
     senha_hash = generate_password_hash(senha)  # Cria hash da senha
     try:
-        conn = sqlite3.connect("banco.db")
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO usuarios (email, senha) VALUES (?, ?)", (email, senha_hash))
-        conn.commit()
-        return jsonify({"mensagem": "Usuário registrado com sucesso"}), 201
+        with closing(get_connection()) as conn, conn:
+            conn.execute("INSERT INTO usuarios (email, senha) VALUES (?, ?)", (email, senha_hash))
     except sqlite3.IntegrityError:
         return jsonify({"erro": "Email já cadastrado"}), 409
-    finally:
-        conn.close()
+    return jsonify({"mensagem": "Usuário registrado com sucesso"}), 201
 
 # ------------------------------
 # Login
 # ------------------------------
 
 @app.route("/login", methods=["POST"])
+@limiter.limit(RATE_LIMIT_LOGIN)
 def login():
-    data = request.get_json()
-    email = data.get("email")
-    senha = data.get("senha")
+    data = json_body()
+    if data is None:
+        return jsonify({"erro": "Requisição inválida"}), 400
 
-    if not email or not senha:
-        return jsonify({"erro": "Email e senha são obrigatórios"}), 400
+    email, senha, erro = validar_credenciais(data)
+    if erro:
+        return jsonify({"erro": erro}), 400
 
-    conn = sqlite3.connect("banco.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, senha FROM usuarios WHERE email = ?", (email,))
-    user = cursor.fetchone()
-    conn.close()
+    with closing(get_connection()) as conn:
+        user = conn.execute("SELECT id, senha FROM usuarios WHERE email = ?", (email,)).fetchone()
 
-    # Verifica senha
-    if user and check_password_hash(user[1], senha):
-        session["usuario_id"] = user[0]
-        return jsonify({"mensagem": "Login realizado com sucesso", "session_id": str(user[0])})
-    else:
+    # Verifica senha (sempre calcula um hash, exista o usuário ou não)
+    senha_ok = check_password_hash(user[1] if user else DUMMY_PASSWORD_HASH, senha)
+    if not (user and senha_ok):
+        logger.info("Failed login attempt from %s", get_remote_address())
         return jsonify({"erro": "Credenciais inválidas"}), 401
+
+    session.clear()  # Evita fixação de sessão
+    session["usuario_id"] = user[0]
+    return jsonify({"mensagem": "Login realizado com sucesso"})
+
+# ------------------------------
+# Logout e usuário atual
+# ------------------------------
+
+@app.route("/logout", methods=["POST"])
+@login_required
+def logout():
+    session.clear()
+    return jsonify({"mensagem": "Logout realizado com sucesso"})
+
+
+@app.route("/me", methods=["GET"])
+@login_required
+def me():
+    with closing(get_connection()) as conn:
+        user = conn.execute("SELECT id, email FROM usuarios WHERE id = ?", (g.usuario_id,)).fetchone()
+    if not user:
+        session.clear()
+        return jsonify({"erro": "Usuário não autenticado"}), 401
+    return jsonify({"usuario_id": user[0], "email": user[1]})
 
 # ------------------------------
 # Enviar mensagem ao chatbot
 # ------------------------------
 
 @app.route("/mensagem", methods=["POST"])
+@login_required
+@limiter.limit(RATE_LIMIT_MESSAGE, key_func=rate_limit_user_key)
 def responder():
-    data = request.get_json()
+    data = json_body()
+    if data is None:
+        return jsonify({"erro": "Requisição inválida"}), 400
+
+    usuario_id = g.usuario_id
     pergunta_usuario = data.get("mensagem")
-    session_id = data.get("session_id") or "usuario_padrao"
     conversa_id = data.get("conversa_id") or str(uuid.uuid4())  # Cria ID da conversa se não tiver
 
-    if not pergunta_usuario:
+    if not isinstance(pergunta_usuario, str) or not pergunta_usuario.strip():
         return jsonify({"erro": "mensagem não fornecida"}), 400
+    pergunta_usuario = pergunta_usuario.strip()
+    if len(pergunta_usuario) > MAX_MESSAGE_CHARS:
+        return jsonify({"erro": f"A mensagem deve ter no máximo {MAX_MESSAGE_CHARS} caracteres"}), 400
+    if not conversa_id_valido(conversa_id):
+        return jsonify({"erro": "conversa_id inválido"}), 400
 
     # Chama o modelo com histórico
-
-    resposta = chain_with_history.invoke(
-        {"input": pergunta_usuario},
-        config={"configurable": {"session_id": session_id}}
-    )
+    try:
+        resposta = chain_with_history.invoke(
+            {"input": pergunta_usuario},
+            config={"configurable": {"session_id": str(usuario_id)}}
+        )
+    except OpenAIError:
+        logger.exception("LLM request failed (user_id=%s)", usuario_id)
+        return jsonify({"erro": "O assistente está indisponível no momento. Tente novamente em instantes."}), 502
 
     texto_resposta = resposta.content
 
-    # Salva no banco (se usuário for válido)
+    # Salva no banco
     try:
-        usuario_id = int(session_id)
-        conn = sqlite3.connect("banco.db")
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO historico (usuario_id, conversa_id, pergunta, resposta)
-            VALUES (?, ?, ?, ?)
-        """, (usuario_id, conversa_id, pergunta_usuario, texto_resposta))
-        conn.commit()
-        conn.close()
-    except Exception:
-        pass
+        with closing(get_connection()) as conn, conn:
+            conn.execute("""
+                INSERT INTO historico (usuario_id, conversa_id, pergunta, resposta)
+                VALUES (?, ?, ?, ?)
+            """, (usuario_id, conversa_id, pergunta_usuario, texto_resposta))
+    except sqlite3.Error:
+        logger.exception("Failed to save message history (user_id=%s)", usuario_id)
 
     return jsonify({"resposta": texto_resposta, "conversa_id": conversa_id})
 
@@ -443,36 +631,23 @@ def responder():
 # ------------------------------
 
 @app.route("/conversas", methods=["GET"])
+@login_required
 def listar_conversas():
-    usuario_id = session.get("usuario_id")
-    if not usuario_id:
-        # Tenta pegar pelo session_id enviado no request
+    usuario_id = g.usuario_id
 
-        sid = request.args.get("session_id") or request.headers.get("X-Session-Id")
-        try:
-            if sid:
-                usuario_id = int(sid)
-        except:
-            usuario_id = None
-
-    if not usuario_id:
-        return jsonify({"conversas": []}), 200
-
-    conn = sqlite3.connect("banco.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT h.conversa_id, h.pergunta, h.resposta, h.data
-        FROM historico h
-        JOIN (
-            SELECT conversa_id, MIN(data) AS primeira_data
-            FROM historico
-            WHERE usuario_id = ?
-            GROUP BY conversa_id
-        ) p ON h.conversa_id = p.conversa_id AND h.data = p.primeira_data
-        ORDER BY p.primeira_data DESC
-    """, (usuario_id,))
-    registros = cursor.fetchall()
-    conn.close()
+    with closing(get_connection()) as conn:
+        registros = conn.execute("""
+            SELECT h.conversa_id, h.pergunta, h.resposta, h.data
+            FROM historico h
+            JOIN (
+                SELECT conversa_id, MIN(data) AS primeira_data
+                FROM historico
+                WHERE usuario_id = ?
+                GROUP BY conversa_id
+            ) p ON h.conversa_id = p.conversa_id AND h.data = p.primeira_data
+            WHERE h.usuario_id = ?
+            ORDER BY p.primeira_data DESC
+        """, (usuario_id, usuario_id)).fetchall()
 
     # Monta resposta resumida
 
@@ -494,45 +669,27 @@ def listar_conversas():
 # ------------------------------
 
 @app.route("/historico", methods=["GET"])
+@login_required
 def historico():
-    usuario_id = session.get("usuario_id")
+    usuario_id = g.usuario_id
     conversa_id = request.args.get("conversa_id")
 
-    if not usuario_id:
-
-        # Tenta pegar pelo session_id enviado no request
-
-        sid = request.args.get("session_id") or request.headers.get("X-Session-Id")
-        try:
-            if sid:
-                usuario_id = int(sid)
-        except:
-            usuario_id = None
-
-    if not usuario_id:
-        return jsonify({"erro": "Usuário não autenticado", "historico": []}), 200
-
-    conn = sqlite3.connect("banco.db")
-    cursor = conn.cursor()
-
-    # Busca histórico específico ou todos
-
-    if conversa_id:
-        cursor.execute("""
-            SELECT pergunta, resposta, data
-            FROM historico
-            WHERE usuario_id = ? AND conversa_id = ?
-            ORDER BY data ASC
-        """, (usuario_id, conversa_id))
-    else:
-        cursor.execute("""
-            SELECT pergunta, resposta, data
-            FROM historico
-            WHERE usuario_id = ?
-            ORDER BY data ASC
-        """, (usuario_id,))
-    registros = cursor.fetchall()
-    conn.close()
+    with closing(get_connection()) as conn:
+        # Busca histórico específico ou todos
+        if conversa_id:
+            registros = conn.execute("""
+                SELECT pergunta, resposta, data
+                FROM historico
+                WHERE usuario_id = ? AND conversa_id = ?
+                ORDER BY data ASC
+            """, (usuario_id, conversa_id)).fetchall()
+        else:
+            registros = conn.execute("""
+                SELECT pergunta, resposta, data
+                FROM historico
+                WHERE usuario_id = ?
+                ORDER BY data ASC
+            """, (usuario_id,)).fetchall()
 
     return jsonify({
         "historico": [
@@ -546,4 +703,11 @@ def historico():
 # ==============================
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0")
+    debug = env_bool("FLASK_DEBUG", False)
+    if debug and IS_PRODUCTION:
+        raise RuntimeError("FLASK_DEBUG cannot be enabled when APP_ENV=production")
+    app.run(
+        host=os.getenv("FLASK_RUN_HOST", "127.0.0.1"),
+        port=env_int("PORT", 5000),
+        debug=debug,
+    )
