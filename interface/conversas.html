@@ -6,7 +6,7 @@
   <link rel="icon" type="image/png" href="assets/Icon.png"/>
   <title>Conversas</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Lora:wght@600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&family=Nunito:wght@700&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -35,17 +35,13 @@
     <img src="assets/Bull.png" alt="Touro" class="bull-bg">
   </div>
 
+  <script src="config.js"></script>
+  <script src="api.js"></script>
   <script>
-    const API_BASE = 'http://localhost:5000';
-
     async function carregarConversas() {
       try {
-        const resp = await fetch(`${API_BASE}/conversas`, { method: 'GET', credentials: 'include' });
-        if (resp.status === 401) {
-          window.location.href = 'index.html';
-          return;
-        }
-        const data = await resp.json();
+        const { ok, data } = await apiFetch('/conversas');
+        if (!ok) throw new Error(data.erro || 'Erro ao buscar conversas');
 
         const container = document.getElementById('lista-conversas');
         container.innerHTML = "";
@@ -79,16 +75,6 @@
     function novoChat() {
       localStorage.removeItem('conversa_id'); // limpa conversa atual
       window.location.href = "home.html"; // abre página home
-    }
-
-    async function logout() {
-      try {
-        await fetch(`${API_BASE}/logout`, { method: 'POST', credentials: 'include' });
-      } catch (err) {
-        console.error(err);
-      }
-      localStorage.removeItem('conversa_id');
-      window.location.href = 'index.html';
     }
 
     window.addEventListener("DOMContentLoaded", carregarConversas);

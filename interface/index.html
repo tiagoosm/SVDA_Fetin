@@ -7,7 +7,7 @@
 <link rel="icon" type="image/png" href="assets/Icon.png"/>
 <title>Entrar</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&family=Nunito:wght@700&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -31,7 +31,6 @@
       <input id="senha" type="password" placeholder="Senha" required>
       <button type="submit" class="btn-primary">Entrar</button>
 
-      <a href="#" class="forgot" id="forget-password">Esqueceu a senha?</a>
       <div class="divider"><span>Ou</span></div>
 
       <button type="button" class="btn-secondary" onclick="window.location.href='cadastro.html'">Cadastre-se</button>
@@ -39,6 +38,8 @@
   </div>
 </div>
 
+<script src="config.js"></script>
+<script src="api.js"></script>
 <script>
   const form = document.getElementById('form-login');
   form.addEventListener('submit', async (e) => {
@@ -48,16 +49,13 @@
     const senha = document.getElementById('senha').value;
 
     try {
-      const resp = await fetch('http://localhost:5000/login', {
+      const { ok, data } = await apiFetch('/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email, senha })
+        body: { email, senha },
+        redirectOn401: false,
       });
 
-      const data = await resp.json();
-
-      if (!resp.ok) {
+      if (!ok) {
         alert(data.erro || 'Erro ao entrar');
         return;
       }
@@ -65,18 +63,13 @@
       // a sessão fica em um cookie HttpOnly definido pelo servidor
       localStorage.removeItem('conversa_id');
 
-     // segue para a lista de conversas
-    window.location.href = 'conversas.html';
-
+      // segue para a lista de conversas
+      window.location.href = 'conversas.html';
     } catch (err) {
       console.error(err);
       alert('Falha ao conectar com o servidor.');
     }
   });
-
-  document.getElementById("forget-password").addEventListener("click", function() {
-  alert("Verifique seu e-mail");
-});
 </script>
 </body>
 </html>

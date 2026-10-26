@@ -23,7 +23,7 @@
 }
 
 .register-title {
-  font-family: "Lora", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 32px;
   font-weight: 600;
   margin-top: 7vh;
@@ -48,8 +48,8 @@
   border-left: 0;
   border-right: 0;
   font-size: 12px;
-  font-family: "lora", sans-serif;
-  font-weight: bold;
+  font-family: "Rubik", sans-serif;
+  font-weight: 500;
   background: transparent;
 }
 
@@ -78,7 +78,7 @@
   border: none;
   border-radius: 24px;
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 600;
   cursor: pointer;
   font-family: "Inter", sans-serif;
   width: 20vw;
@@ -171,8 +171,9 @@
 }
 
 .logo-text {
+    font-family: "Nunito", sans-serif;
     font-size: 24px;
-    font-weight: bold;
+    font-weight: 700;
     color: #D59200;
     letter-spacing: 2px;
 }
@@ -186,7 +187,7 @@ form input {
     border-left: 0;
     border-right: 0;
     font-size: 13px;
-    font-family: "lora", sans-serif;
+    font-family: "Rubik", sans-serif;
 }
 
 input:focus{
@@ -205,26 +206,13 @@ input:focus{
     border-radius: 24px;
     font-size: 15px;
     font-family: "Inter", sans-serif;
-    font-weight: bold;
+    font-weight: 600;
     cursor: pointer;
     margin-bottom: 1.5vh;
 }
 
 .btn-primary:hover {
     background-color: #1B5E20;
-}
-
-.forgot {
-    width: 50%;
-    font-size: 14px;
-    font-weight: bold;
-    color: #707070;
-    text-decoration: none;
-}
-
-.forgot:hover{
-  color: #4d4d4d;
-  text-decoration: underline;
 }
 
 .divider {
@@ -272,7 +260,7 @@ input:focus{
     border-radius: 24px;
     font-size: 15px;
     font-family: "Inter", sans-serif;
-    font-weight: bold;
+    font-weight: 600;
     cursor: pointer;
 }
 
@@ -284,6 +272,7 @@ input:focus{
 
 body 
 {
+  font-family: "Rubik", sans-serif;
   background: radial-gradient(circle at center, white, #FAF5EB);
   margin: 0;
 }
@@ -306,7 +295,7 @@ header
 {
   margin: 0;
   color: #D59200;
-  font-family: "Lora", sans-serif;
+  font-family: "Nunito", sans-serif;
   font-weight: 700;
   letter-spacing: 2vh;
   font-size: clamp(24px, 5vw, 32px);
@@ -431,7 +420,8 @@ header
 .message {
   max-width: 70%;
   padding: 0px 14px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Rubik", sans-serif;
+  font-weight: 500;
   font-size: 1rem;
   word-wrap: break-word;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
@@ -448,7 +438,6 @@ header
 
 .message-received{
   color: black;
-  font-weight: 400;
   font-style: italic;
   border-radius: 20px;
   margin-bottom: 0;
@@ -492,6 +481,16 @@ header
   font-family: "Rubik", sans-serif;
   color: #C5C5C5;
   letter-spacing: 1px;
+}
+
+.disclaimer {
+  width: 70%;
+  max-width: 1000px;
+  margin: 0 auto 16px;
+  text-align: center;
+  font-family: "Rubik", sans-serif;
+  font-size: 12px;
+  color: #707070;
 }
 
 .input-text:focus {
@@ -563,9 +562,14 @@ header
       padding: 15px 0;
     }
 
+    .conversation-item {
+      cursor: pointer;
+    }
+
     .conversation-item h3 {
       margin: 0;
-      font-weight: bold;
+      font-family: "Inter", sans-serif;
+      font-weight: 600;
       font-size: 16px;
       color: #2c2c2c;
     }

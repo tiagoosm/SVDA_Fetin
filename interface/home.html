@@ -7,8 +7,7 @@
 
   <link rel="icon" type="image/png" href="assets/Icon.png"/>
   <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Rubik&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&family=Nunito:wght@700&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
 
   <script src="vendor/marked-15.0.12.min.js"></script>
   <script src="vendor/purify-3.2.6.min.js"></script>
@@ -35,12 +34,17 @@
   </div>
 
   <div class="input-container">
-    <input type="text" class="input-text" placeholder="Tire sua dúvida..." />
+    <input type="text" class="input-text" placeholder="Tire sua dúvida..." maxlength="2000" />
     <button class="send-btn">
       <img src="assets/BotaoSend.png" alt="Enviar" class="send-icon"/>
     </button>
   </div>
+  <p class="disclaimer">
+    As respostas são orientativas e não substituem a avaliação de um médico-veterinário ou zootecnista.
+  </p>
 
+  <script src="config.js"></script>
+  <script src="api.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
