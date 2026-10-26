@@ -9,7 +9,7 @@ const messagesDiv = document.querySelector('.messages');   // Div que vai conter
 const TYPING_CHARS_PER_TICK = 4; // Letras reveladas a cada passo da digitação
 const TYPING_TICK_MS = 15;       // Intervalo entre passos (ms)
 
-const WELCOME_MESSAGE = `👋 Olá, seja bem-vindo ao Serviço de Dados Alimentícios Bovinos – SVDAB!
+const WELCOME_MESSAGE = `👋 Olá, seja bem-vindo ao SVDA!
 
 Aqui o seu rebanho vem em primeiro lugar. Nosso objetivo é deixar a sua vida no campo mais simples e produtiva, oferecendo apoio em tudo o que você precisa:
 
