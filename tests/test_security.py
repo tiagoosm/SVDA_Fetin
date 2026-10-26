@@ -11,6 +11,7 @@ def send(client, mensagem="Como alimentar bezerros?", **extra):
 
 # ---------- Regression: user A must never read user B's data ----------
 
+
 def test_user_cannot_read_other_users_history_or_conversations(make_client):
     alice, bob = make_client(), make_client()
     register_and_login(alice, "alice@example.com")
@@ -71,6 +72,7 @@ def test_cannot_continue_another_users_conversation(make_client, fake_llm):
 
 # ---------- Authentication required ----------
 
+
 @pytest.mark.parametrize(
     "method,path",
     [
@@ -109,6 +111,7 @@ def test_session_cookie_is_httponly(client):
 
 
 # ---------- Input validation ----------
+
 
 @pytest.mark.parametrize(
     "payload",
@@ -157,6 +160,7 @@ def test_invalid_conversa_id_rejected(client, fake_llm):
 
 # ---------- Rate limiting ----------
 
+
 def test_login_rate_limited(client):
     register(client)
     codes = [login(client, senha="senha-errada-1").status_code for _ in range(6)]
@@ -179,6 +183,7 @@ def test_message_rate_limited_per_user(make_client, fake_llm):
 
 
 # ---------- LLM errors ----------
+
 
 def test_llm_error_returns_friendly_message(client, fake_llm):
     register_and_login(client)

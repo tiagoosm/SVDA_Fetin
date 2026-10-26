@@ -40,6 +40,7 @@ def make_app(tmp_path, fake_llm):
     def factory(**overrides):
         config = {"TESTING": True, "DATABASE_PATH": str(tmp_path / "test.db"), **overrides}
         return create_app(config, llm=fake_llm.runnable)
+
     return factory
 
 

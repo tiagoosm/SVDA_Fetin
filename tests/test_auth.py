@@ -36,7 +36,10 @@ def test_migration_adds_profile_columns_idempotently(app):
     path = app.config["DATABASE_PATH"]
     with closing(sqlite3.connect(path)) as conn, conn:
         conn.execute("DROP TABLE usuarios")
-        conn.execute("CREATE TABLE usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, senha TEXT NOT NULL)")
+        conn.execute(
+            "CREATE TABLE usuarios "
+            "(id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, senha TEXT NOT NULL)"
+        )
         conn.execute("INSERT INTO usuarios (email, senha) VALUES ('antigo@example.com', 'hash')")
 
     init_db(path)

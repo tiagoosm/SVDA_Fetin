@@ -55,3 +55,17 @@ def test_cors_allowlist(production_env, monkeypatch):
 def test_relative_database_path_is_resolved_from_project_root(monkeypatch):
     monkeypatch.setenv("DATABASE_PATH", "data/svda.db")
     assert load_config()["DATABASE_PATH"] == os.path.join(BASE_DIR, "data", "svda.db")
+
+
+def test_proxy_fix_uses_forwarded_client_ip(production_env, monkeypatch):
+    monkeypatch.setenv("PROXY_FIX_X_FOR", "1")
+    app = create_app()
+
+    @app.route("/ip")
+    def ip():
+        from flask import request
+
+        return request.remote_addr
+
+    resp = app.test_client().get("/ip", headers={"X-Forwarded-For": "203.0.113.9"})
+    assert resp.get_data(as_text=True) == "203.0.113.9"

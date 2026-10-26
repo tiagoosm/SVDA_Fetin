@@ -101,3 +101,20 @@ def test_message_route_returns_reply_and_persists(client, fake_llm):
     assert historico[0]["pergunta"] == "Oi"
     assert historico[0]["resposta"] == "Resposta de teste"
     assert len(fake_llm.calls) == 1  # exactly one model call per message
+
+
+def test_conversation_list_shows_title_and_preview(client):
+    register_and_login(client)
+    send(client, "Qual a melhor dieta para vacas de leite em lactação no período da seca?")
+    send(client, "Outra conversa")
+    conversas = client.get("/conversas").get_json()["conversas"]
+    assert [c["titulo"] for c in conversas][0] == "Outra conversa..."
+    assert conversas[1]["titulo"].endswith("...") and len(conversas[1]["titulo"]) == 43
+    assert conversas[1]["previa"] == "Resposta de teste..."
+
+
+def test_history_without_conversation_returns_all_user_messages(client):
+    register_and_login(client)
+    send(client, "a")
+    send(client, "b")
+    assert [m["pergunta"] for m in client.get("/historico").get_json()["historico"]] == ["a", "b"]
