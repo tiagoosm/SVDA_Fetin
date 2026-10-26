@@ -62,8 +62,8 @@
         return;
       }
 
-      // guarda session_id para enviar junto nas mensagens ao chatbot
-      localStorage.setItem('session_id', data.session_id);
+      // a sessão fica em um cookie HttpOnly definido pelo servidor
+      localStorage.removeItem('conversa_id');
 
      // segue para a lista de conversas
     window.location.href = 'conversas.html';

@@ -36,14 +36,15 @@
   </div>
 
   <script>
-    const API_BASE = 'http://127.0.0.1:5000';
+    const API_BASE = 'http://localhost:5000';
 
     async function carregarConversas() {
       try {
-        const sessionId = localStorage.getItem('session_id') || '';
-        const url = `${API_BASE}/conversas${sessionId ? '?session_id=' + encodeURIComponent(sessionId) : ''}`;
-
-        const resp = await fetch(url, { method: 'GET' });
+        const resp = await fetch(`${API_BASE}/conversas`, { method: 'GET', credentials: 'include' });
+        if (resp.status === 401) {
+          window.location.href = 'index.html';
+          return;
+        }
         const data = await resp.json();
 
         const container = document.getElementById('lista-conversas');
@@ -57,10 +58,12 @@
         data.conversas.forEach(conv => {
           const item = document.createElement('div');
           item.classList.add('conversation-item');
-          item.innerHTML = `
-            <h3>${conv.titulo}</h3>
-            <p>${conv.previa}</p>
-          `;
+          // textContent: título e prévia vêm do banco e não podem virar HTML
+          const titulo = document.createElement('h3');
+          titulo.textContent = conv.titulo;
+          const previa = document.createElement('p');
+          previa.textContent = conv.previa;
+          item.append(titulo, previa);
           item.onclick = () => {
             localStorage.setItem('conversa_id', conv.conversa_id);
             window.location.href = "home.html";
@@ -78,10 +81,14 @@
       window.location.href = "home.html"; // abre página home
     }
 
-    function logout() {
-      localStorage.removeItem('session_id'); 
-      localStorage.removeItem('conversa_id'); 
-      window.location.href = 'index.html';  
+    async function logout() {
+      try {
+        await fetch(`${API_BASE}/logout`, { method: 'POST', credentials: 'include' });
+      } catch (err) {
+        console.error(err);
+      }
+      localStorage.removeItem('conversa_id');
+      window.location.href = 'index.html';
     }
 
     window.addEventListener("DOMContentLoaded", carregarConversas);

@@ -1,11 +1,19 @@
 // ==============================
 // CONFIGURAÇÃO INICIAL
 // ==============================
-const API_BASE = 'http://127.0.0.1:5000'; // URL base da API Flask (backend)
+const API_BASE = 'http://localhost:5000'; // URL base da API Flask (backend)
 const input = document.querySelector('.input-text');       // Campo de entrada de texto
 const sendBtn = document.querySelector('.send-btn');       // Botão de enviar
 const chatContainer = document.querySelector('.chat-container'); // Container do chat
 const messagesDiv = document.querySelector('.messages');   // Div que vai conter as mensagens
+
+// ==============================
+// FUNÇÃO: converter markdown em HTML seguro
+// ==============================
+// Texto do usuário e da IA nunca vai para o DOM sem passar pelo DOMPurify (evita XSS)
+function renderMarkdown(text) {
+  return DOMPurify.sanitize(marked.parse(text));
+}
 
 // ==============================
 // FUNÇÃO: adicionar mensagem no chat
@@ -15,7 +23,7 @@ function addMessage(text, sender) {
   messageWrapper.classList.add('message-wrapper');
 
   const p = document.createElement('p'); // Cria parágrafo com o texto
-  p.innerHTML = marked.parse(text);      // Usa "marked" para renderizar markdown
+  p.innerHTML = renderMarkdown(text);    // Renderiza markdown sanitizado
   p.classList.add('message');
 
   // Define estilo conforme remetente
@@ -71,7 +79,7 @@ function addMessageTyping(text, sender, velocidade = 3) {
   function escrever() {
     if (i < text.length) {
       parcial += text.charAt(i);              // Adiciona letra por letra
-      p.innerHTML = marked.parse(parcial);    // Renderiza o markdown parcial
+      p.innerHTML = renderMarkdown(parcial);  // Renderiza o markdown parcial sanitizado
       i++;
       setTimeout(escrever, velocidade);       // Controla velocidade da digitação
     }
@@ -89,8 +97,7 @@ sendBtn.addEventListener('click', async () => {
   addMessage(mensagem, 'Você'); // Mostra mensagem no chat
   input.value = "";             // Limpa campo de texto
 
-  // Recupera session_id e conversa_id do localStorage
-  const sessionId = localStorage.getItem('session_id') || null;
+  // Recupera conversa_id do localStorage (o usuário é identificado pelo cookie de sessão)
   const conversaId = localStorage.getItem('conversa_id') || null;
 
   try {
@@ -98,12 +105,19 @@ sendBtn.addEventListener('click', async () => {
     const response = await fetch(`${API_BASE}/mensagem`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mensagem, session_id: sessionId, conversa_id: conversaId })
+      credentials: 'include',
+      body: JSON.stringify({ mensagem, conversa_id: conversaId })
     });
 
-    // Caso a resposta não seja válida
+    if (response.status === 401) {
+      window.location.href = 'index.html';
+      return;
+    }
+
+    // Caso a resposta não seja válida, mostra a mensagem de erro da API
     if (!response.ok) {
-      addMessage("Erro ao receber resposta do servidor.", "Sistema");
+      const erro = await response.json().catch(() => ({}));
+      addMessage(erro.erro || "Erro ao receber resposta do servidor.", "Sistema");
       return;
     }
 
@@ -144,14 +158,17 @@ document.querySelector('.back-btn')?.addEventListener('click', () => {
 // EVENTO: carregar histórico da conversa ao abrir a página
 // ==============================
 window.addEventListener('DOMContentLoaded', async () => {
-  const sessionId = localStorage.getItem('session_id') || null;
   const conversaId = localStorage.getItem('conversa_id') || null;
 
   // Se já existe conversa, busca histórico no backend
   if (conversaId) {
     try {
-      const url = `${API_BASE}/historico?conversa_id=${encodeURIComponent(conversaId)}${sessionId ? '&session_id=' + encodeURIComponent(sessionId) : ''}`;
-      const resp = await fetch(url);
+      const url = `${API_BASE}/historico?conversa_id=${encodeURIComponent(conversaId)}`;
+      const resp = await fetch(url, { credentials: 'include' });
+      if (resp.status === 401) {
+        window.location.href = 'index.html';
+        return;
+      }
       const data = await resp.json();
 
       if (resp.ok && data.historico) {
@@ -193,8 +210,13 @@ Aqui o seu rebanho vem em primeiro lugar. Nosso objetivo é deixar a sua vida no
 // ==============================
 // FUNÇÃO: logout (sair)
 // ==============================
-function logout() {
-  localStorage.removeItem('session_id');  // Remove ID da sessão
+async function logout() {
+  try {
+    // Encerra a sessão no servidor (remove o cookie)
+    await fetch(`${API_BASE}/logout`, { method: 'POST', credentials: 'include' });
+  } catch (err) {
+    console.error(err);
+  }
   localStorage.removeItem('conversa_id'); // Remove ID da conversa
   window.location.href = 'index.html';    // Redireciona para tela de login
 }
