@@ -42,6 +42,7 @@
             <option value="Corte">Corte</option>
             <option value="Outro">Outro</option>
           </select>
+          <input id="convite" type="text" placeholder="Código de convite (se tiver)" maxlength="100" autocomplete="off">
         </div>
       </div>
 
@@ -62,6 +63,7 @@
         senha: document.getElementById('senha').value,
         tamanho_rebanho: document.getElementById('tamanho').value,
         tipo_gado: document.getElementById('tipo').value,
+        codigo_convite: document.getElementById('convite').value.trim(),
       };
 
       try {

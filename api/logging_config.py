@@ -46,7 +46,7 @@ def register_request_logging(app):
 
     @app.after_request
     def log_request(response):
-        if request.path != "/":  # ignora o health check
+        if request.path not in ("/", "/healthz"):  # ignora os health checks
             logger.info(
                 "%s %s -> %s",
                 request.method,

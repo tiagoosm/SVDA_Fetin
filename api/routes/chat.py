@@ -3,6 +3,7 @@
 import logging
 import sqlite3
 import uuid
+from datetime import UTC, datetime
 
 from flask import Blueprint, current_app, g, jsonify
 from openai import APITimeoutError, OpenAIError, RateLimitError
@@ -33,6 +34,14 @@ def responder():
     conversa_id = data.get("conversa_id") or str(uuid.uuid4())  # Cria ID da conversa se não tiver
     if not conversa_id_valido(conversa_id):
         return jsonify({"erro": "conversa_id inválido"}), 400
+
+    # Teto global diário (protege o crédito da OpenAI em demos públicas)
+    limite_diario = current_app.config["DAILY_MESSAGE_LIMIT"]
+    if limite_diario > 0:
+        inicio_do_dia = datetime.now(UTC).strftime("%Y-%m-%d 00:00:00")
+        if repositories.count_messages_since(inicio_do_dia) >= limite_diario:
+            logger.warning("Daily message limit reached (%s)", limite_diario)
+            return jsonify({"erro": "O limite diário de mensagens da demo foi atingido. Volte amanhã."}), 429
 
     # Chama o modelo com o histórico desta conversa (últimas N mensagens)
     try:

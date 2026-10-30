@@ -1,5 +1,6 @@
 """Autenticação por sessão e validação de entrada."""
 
+import hmac
 import re
 import uuid
 from functools import wraps
@@ -48,6 +49,17 @@ def validar_nova_senha(senha):
     minimo = current_app.config["MIN_PASSWORD_LENGTH"]
     if len(senha) < minimo:
         return f"A senha deve ter pelo menos {minimo} caracteres"
+    return None
+
+
+def validar_convite(data):
+    """Exige o código de convite quando INVITE_CODE está configurado."""
+    esperado = current_app.config["INVITE_CODE"]
+    if not esperado:
+        return None
+    enviado = data.get("codigo_convite")
+    if not isinstance(enviado, str) or not hmac.compare_digest(enviado.strip().encode(), esperado.encode()):
+        return "Código de convite inválido"
     return None
 
 

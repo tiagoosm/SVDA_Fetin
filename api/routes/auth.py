@@ -10,7 +10,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..db import repositories
 from ..extensions import limiter
-from ..security import json_body, login_required, validar_credenciais, validar_nova_senha, validar_perfil
+from ..security import (
+    json_body,
+    login_required,
+    validar_convite,
+    validar_credenciais,
+    validar_nova_senha,
+    validar_perfil,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +34,10 @@ def register():
     data = json_body()
     if data is None:
         return jsonify({"erro": "Requisição inválida"}), 400
+
+    erro = validar_convite(data)
+    if erro:
+        return jsonify({"erro": erro}), 403
 
     email, senha, erro = validar_credenciais(data)
     if erro:

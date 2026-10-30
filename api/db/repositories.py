@@ -67,6 +67,12 @@ def recent_turns(usuario_id, conversa_id, limit):
     return list(reversed(rows))
 
 
+def count_messages_since(since):
+    """Quantas mensagens (de todos os usuários) foram salvas desde `since` ('YYYY-MM-DD HH:MM:SS', UTC)."""
+    with get_connection() as conn:
+        return conn.execute("SELECT COUNT(*) FROM historico WHERE data >= ?", (since,)).fetchone()[0]
+
+
 def list_conversations(usuario_id):
     """Primeira mensagem de cada conversa do usuário, da mais recente para a mais antiga."""
     with get_connection() as conn:

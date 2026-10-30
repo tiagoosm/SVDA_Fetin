@@ -3,16 +3,35 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, Response, send_from_directory
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from .config import load_config, validate_config
+from .config import BASE_DIR, load_config, validate_config
 from .db.schema import init_db
 from .errors import register_error_handlers
 from .extensions import limiter
 from .logging_config import register_request_logging, setup_logging
 from .routes import auth, chat, conversations
+
+INTERFACE_DIR = os.path.join(BASE_DIR, "interface")
+
+
+def register_frontend(app):
+    """Serve o frontend estático (interface/) na mesma origem da API."""
+
+    @app.route("/config.js")
+    def frontend_config():
+        # Mesma origem: a API fica na raiz, sem prefixo
+        return Response("window.SVDA_CONFIG = { API_BASE: '' };\n", mimetype="text/javascript")
+
+    @app.route("/")
+    def index():
+        return send_from_directory(INTERFACE_DIR, "index.html")
+
+    @app.route("/<path:filename>")
+    def static_files(filename):
+        return send_from_directory(INTERFACE_DIR, filename)
 
 
 def create_app(overrides=None, llm=None):
@@ -48,10 +67,18 @@ def create_app(overrides=None, llm=None):
     app.register_blueprint(chat.bp)
     app.register_blueprint(conversations.bp)
 
-    @app.route("/")
-    def home():
+    @app.route("/healthz")
+    def healthz():
         # Health check público; não expõe dados
-        return "Servidor rodando!"
+        return "ok"
+
+    if app.config["SERVE_FRONTEND"]:
+        register_frontend(app)
+    else:
+
+        @app.route("/")
+        def home():
+            return "Servidor rodando!"
 
     register_request_logging(app)
     register_error_handlers(app)

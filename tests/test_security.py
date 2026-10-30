@@ -200,3 +200,56 @@ def test_llm_has_cost_limits_and_unchanged_model(app):
     assert llm.model_name == "gpt-4o-mini"
     assert llm.temperature == 0.7
     assert llm.max_tokens == app.config["LLM_MAX_TOKENS"] == 1024
+
+
+# ---------- Demo protection: invite code and global daily cap ----------
+
+
+def test_invite_code_not_required_by_default(client):
+    assert register(client).status_code == 201
+
+
+@pytest.mark.parametrize("codigo", [None, "", "errado", 123])
+def test_invite_code_required_when_configured(make_app, codigo):
+    client = make_app(INVITE_CODE="segredo-da-demo").test_client()
+    extra = {} if codigo is None else {"codigo_convite": codigo}
+    resp = register(client, **extra)
+    assert resp.status_code == 403
+    assert resp.get_json() == {"erro": "Código de convite inválido"}
+    assert login(client).status_code == 401  # no account was created
+
+
+def test_valid_invite_code_allows_signup(make_app):
+    client = make_app(INVITE_CODE="segredo-da-demo").test_client()
+    assert register(client, codigo_convite=" segredo-da-demo ").status_code == 201
+    assert login(client).status_code == 200
+
+
+def test_daily_limit_is_global_and_skips_the_model(make_app, fake_llm):
+    app = make_app(DAILY_MESSAGE_LIMIT=3)
+    alice, bob = app.test_client(), app.test_client()
+    register_and_login(alice, "alice@example.com")
+    register_and_login(bob, "bob@example.com")
+
+    assert [send(alice).status_code for _ in range(2)] == [200, 200]
+    assert send(bob).status_code == 200  # third message of the day, from another user
+    resp = send(alice)
+    assert resp.status_code == 429
+    assert "limite diário" in resp.get_json()["erro"]
+    assert send(bob).status_code == 429
+    assert len(fake_llm.calls) == 3  # blocked requests never reach the model
+
+
+def test_daily_limit_ignores_previous_days(make_app):
+    from api.db.connection import get_connection
+
+    app = make_app(DAILY_MESSAGE_LIMIT=1)
+    client = app.test_client()
+    register_and_login(client)
+    with get_connection(app.config["DATABASE_PATH"]) as conn:
+        conn.execute(
+            "INSERT INTO historico (usuario_id, conversa_id, pergunta, resposta, data) "
+            "VALUES (1, 'x', 'p', 'r', '2000-01-01 10:00:00')"
+        )
+    assert send(client).status_code == 200  # yesterday's traffic does not count
+    assert send(client).status_code == 429

@@ -72,6 +72,12 @@ def load_config():
         "MAX_MESSAGE_CHARS": env_int("MAX_MESSAGE_CHARS", 2000),
         "LLM_MAX_TOKENS": env_int("LLM_MAX_TOKENS", 1024),
         "LLM_TIMEOUT_SECONDS": env_int("LLM_TIMEOUT_SECONDS", 30),
+        # Proteção de demos públicas (ambas desligadas por padrão)
+        "INVITE_CODE": os.getenv("INVITE_CODE", "").strip(),  # exigido no cadastro quando definido
+        # Teto global de mensagens por dia (UTC); 0 = sem teto
+        "DAILY_MESSAGE_LIMIT": env_int("DAILY_MESSAGE_LIMIT", 0),
+        # Faz o Flask servir também o frontend (deploy em um único contêiner)
+        "SERVE_FRONTEND": env_bool("SERVE_FRONTEND", False),
         # Quantas mensagens anteriores da conversa (perguntas + respostas) vão para o modelo
         "HISTORY_MAX_MESSAGES": env_int("HISTORY_MAX_MESSAGES", 10),
         # Rate limiting (sintaxe do Flask-Limiter, ex.: "5 per minute;30 per hour")
