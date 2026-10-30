@@ -1,32 +1,31 @@
-# Usage: cp .env.example .env  (set OPENAI_API_KEY and SECRET_KEY)  &&  docker compose up --build
+# Usage: cp .env.example .env   (set OPENAI_API_KEY and SECRET_KEY)
+#        docker compose up --build
 # Open http://localhost:8080
 services:
   backend:
-    build: .
+    build: ./backend
     env_file: .env
     environment:
       APP_ENV: production
       OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in .env}
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (python -c "import secrets; print(secrets.token_hex(32))")}
-      DATABASE_PATH: /data/banco.db
+      DATABASE_PATH: /data/svda.db
       PROXY_FIX_X_FOR: "1"
       LOG_FORMAT: json
-      # The cookie is Secure by default in production; plain http://localhost
-      # needs false. Set it to true when serving over HTTPS.
+      # The cookie is Secure by default in production; plain http://localhost needs false.
+      # Set it to true when serving over HTTPS.
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
     volumes:
       - svda-data:/data
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')"]
       interval: 10s
       timeout: 3s
       retries: 5
     restart: unless-stopped
 
   frontend:
-    build:
-      context: .
-      dockerfile: docker/frontend.Dockerfile
+    build: ./frontend
     ports:
       - "8080:80"
     depends_on:

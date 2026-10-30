@@ -1,9 +1,12 @@
-# Static frontend served by nginx, which also proxies /api/ to the backend
+# SVDA frontend: build the React app, then serve it with nginx (which also proxies /api to the backend)
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
 FROM nginx:1.27-alpine
-
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY interface /usr/share/nginx/html
-# Same-origin API path instead of http://<host>:5000
-COPY docker/config.js /usr/share/nginx/html/config.js
-
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
