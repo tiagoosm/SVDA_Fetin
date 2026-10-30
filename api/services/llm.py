@@ -41,7 +41,9 @@ def get_llm():
 
 
 def gerar_resposta(pergunta, historico, contexto_produtor=""):
-    """Faz UMA chamada ao LLM e devolve o texto da resposta."""
+    """Faz UMA chamada ao LLM e devolve (texto, truncada).
+
+    truncada é True quando o modelo parou por atingir LLM_MAX_TOKENS."""
     chain = prompt | get_llm()
     resposta = chain.invoke(
         {
@@ -50,4 +52,5 @@ def gerar_resposta(pergunta, historico, contexto_produtor=""):
             "contexto_produtor": contexto_produtor,
         }
     )
-    return resposta.content
+    truncada = (getattr(resposta, "response_metadata", None) or {}).get("finish_reason") == "length"
+    return resposta.content, truncada

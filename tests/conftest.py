@@ -21,13 +21,14 @@ class FakeLLM:
         self.reply = reply
         self.calls = []
         self.error = None
+        self.finish_reason = "stop"
         self.runnable = RunnableLambda(self._invoke)
 
     def _invoke(self, prompt_value):
         self.calls.append(prompt_value.to_messages())
         if self.error:
             raise self.error
-        return AIMessage(content=self.reply)
+        return AIMessage(content=self.reply, response_metadata={"finish_reason": self.finish_reason})
 
 
 @pytest.fixture

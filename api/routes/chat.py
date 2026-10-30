@@ -36,7 +36,7 @@ def responder():
 
     # Chama o modelo com o histórico desta conversa (últimas N mensagens)
     try:
-        texto_resposta = gerar_resposta(
+        texto_resposta, truncada = gerar_resposta(
             pergunta_usuario,
             carregar_historico(usuario_id, conversa_id),
             contexto_do_produtor(repositories.get_user(usuario_id)),
@@ -49,10 +49,14 @@ def responder():
         logger.exception("LLM request failed (user_id=%s)", usuario_id)
         return jsonify({"erro": "O assistente está indisponível no momento. Tente novamente em instantes."}), 502
 
+    if truncada:
+        # Resposta cortada por LLM_MAX_TOKENS; ajuste o limite se isto for frequente
+        logger.warning("LLM answer truncated by max_tokens (user_id=%s)", usuario_id)
+
     # Salva no banco
     try:
         repositories.add_message(usuario_id, conversa_id, pergunta_usuario, texto_resposta)
     except sqlite3.Error:
         logger.exception("Failed to save message history (user_id=%s)", usuario_id)
 
-    return jsonify({"resposta": texto_resposta, "conversa_id": conversa_id})
+    return jsonify({"resposta": texto_resposta, "conversa_id": conversa_id, "truncada": truncada})

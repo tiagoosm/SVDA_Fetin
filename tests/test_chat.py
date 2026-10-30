@@ -118,3 +118,15 @@ def test_history_without_conversation_returns_all_user_messages(client):
     send(client, "a")
     send(client, "b")
     assert [m["pergunta"] for m in client.get("/historico").get_json()["historico"]] == ["a", "b"]
+
+
+def test_truncated_answer_is_flagged_and_logged(client, fake_llm, caplog):
+    register_and_login(client)
+    assert send(client, "Oi").get_json()["truncada"] is False
+
+    fake_llm.finish_reason = "length"
+    with caplog.at_level("WARNING"):
+        data = send(client, "Dieta completa").get_json()
+    assert data["truncada"] is True
+    assert "truncated by max_tokens" in caplog.text
+    assert data["resposta"] == "Resposta de teste"  # content is untouched

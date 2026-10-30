@@ -127,6 +127,9 @@ sendBtn.addEventListener('click', async () => {
 
     // Mostra resposta da IA com efeito de digitação
     addMessage(data.resposta, 'SVDA', { typing: true });
+    if (data.truncada) {
+      addMessage('A resposta foi cortada pelo limite de tamanho. Peça para continuar.', 'Sistema');
+    }
 
     // Atualiza conversa_id no localStorage (mantém continuidade da conversa)
     if (data.conversa_id) {
