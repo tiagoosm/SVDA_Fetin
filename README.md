@@ -172,32 +172,17 @@ docker/                nginx config and frontend image
 - SQLite is fine for a demo or small deployment, not for heavy concurrent use.
 - Answers are returned whole and then "typed" in the browser; there is no streaming.
 - Frontend code has no automated tests; it was checked manually in a browser.
-- The online demo is the static frontend only (see below).
-
-## Online demo
-
-<https://svda-tiagoosms-projects.vercel.app/> hosts only the **static frontend**. The backend is not deployed there, so sign-up, login and the chat do not work on that page. To try the whole system, run it locally or with Docker as above.
 
 ## Roadmap
 
 Ideas, not commitments:
 
-- Host the backend so the online demo is fully working.
+- Host the backend and publish an online demo.
 - Review the assistant's technical content with a professional and keep the vaccination calendar up to date.
 - Password recovery and the "location" field planned in the original sign-up design.
 - Streaming answers.
 - Redis-backed rate limiting and a production database.
 - Automated frontend tests.
-
-## Team
-
-Project developed by a group at the 44th FETIN (Inatel).
-
-- <PREENCHER>
-- <PREENCHER>
-- <PREENCHER>
-
-My role: <PREENCHER>
 
 ## License
 

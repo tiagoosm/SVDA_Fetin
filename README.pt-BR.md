@@ -172,32 +172,17 @@ docker/                configuração do nginx e imagem do frontend
 - O SQLite serve para demonstração ou uso pequeno, não para alta concorrência.
 - As respostas chegam inteiras e são "digitadas" no navegador; não há streaming.
 - O código do frontend não tem testes automatizados; foi verificado manualmente em um navegador.
-- A demo online é só o frontend estático (veja abaixo).
-
-## Demo online
-
-<https://svda-tiagoosms-projects.vercel.app/> hospeda apenas o **frontend estático**. O backend não está publicado ali, então cadastro, login e chat não funcionam nessa página. Para experimentar o sistema completo, rode localmente ou com Docker, como acima.
 
 ## Roadmap
 
 Ideias, não compromissos:
 
-- Hospedar o backend para a demo online funcionar por completo.
+- Hospedar o backend e publicar uma demo online.
 - Revisar o conteúdo técnico do assistente com um profissional e manter o calendário de vacinação atualizado.
 - Recuperação de senha e o campo "localidade" previsto no design original do cadastro.
 - Respostas em streaming.
 - Rate limiting com Redis e banco de dados de produção.
 - Testes automatizados do frontend.
-
-## Equipe
-
-Projeto desenvolvido em grupo na 44ª FETIN (Inatel).
-
-- <PREENCHER>
-- <PREENCHER>
-- <PREENCHER>
-
-Meu papel: <PREENCHER>
 
 ## Licença
 
