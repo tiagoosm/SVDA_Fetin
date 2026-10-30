@@ -109,6 +109,8 @@ All variables are optional in development except the OpenAI key. See [`.env.exam
 | `MAX_MESSAGE_CHARS` | `2000` | Maximum size of a user message |
 | `LLM_MAX_TOKENS` | `1024` | Maximum tokens in each answer |
 | `RATE_LIMIT_LOGIN` / `RATE_LIMIT_REGISTER` / `RATE_LIMIT_MESSAGE` | `5 per minute;30 per hour` / `10 per hour` / `10 per minute;200 per day` | Rate limits (`/mensagem` is limited per user) |
+| `INVITE_CODE` / `DAILY_MESSAGE_LIMIT` | – / `0` | Public-demo protection: sign-up code and a global daily message cap (`0` = no cap) |
+| `SERVE_FRONTEND` | `false` | Flask also serves the frontend (one container, one URL) |
 | `LOG_FORMAT`, `LOG_LEVEL` | `text`, `INFO` | `LOG_FORMAT=json` prints one JSON object per line |
 
 The frontend finds the API through [`interface/config.js`](interface/config.js) (the only place the API URL is defined).
@@ -173,11 +175,15 @@ docker/                nginx config and frontend image
 - Answers are returned whole and then "typed" in the browser; there is no streaming.
 - Frontend code has no automated tests; it was checked manually in a browser.
 
+## Deploying
+
+The Docker image can run as a single container that serves both API and frontend (`SERVE_FRONTEND=true`). It needs a host with a persistent disk for SQLite (for example Fly.io, Render or Railway), and a public demo should use `INVITE_CODE` and `DAILY_MESSAGE_LIMIT` to protect the OpenAI credit. See the [deployment guide](docs/deploy.md).
+
 ## Roadmap
 
 Ideas, not commitments:
 
-- Host the backend and publish an online demo.
+- Publish an online demo (see the deployment guide).
 - Review the assistant's technical content with a professional and keep the vaccination calendar up to date.
 - Password recovery and the "location" field planned in the original sign-up design.
 - Streaming answers.

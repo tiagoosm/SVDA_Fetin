@@ -109,6 +109,8 @@ Todas são opcionais em desenvolvimento, exceto a chave da OpenAI. A lista compl
 | `MAX_MESSAGE_CHARS` | `2000` | Tamanho máximo de uma mensagem do usuário |
 | `LLM_MAX_TOKENS` | `1024` | Máximo de tokens em cada resposta |
 | `RATE_LIMIT_LOGIN` / `RATE_LIMIT_REGISTER` / `RATE_LIMIT_MESSAGE` | `5 per minute;30 per hour` / `10 per hour` / `10 per minute;200 per day` | Limites de requisições (`/mensagem` é limitada por usuário) |
+| `INVITE_CODE` / `DAILY_MESSAGE_LIMIT` | – / `0` | Proteção de demo pública: código de cadastro e teto global diário de mensagens (`0` = sem teto) |
+| `SERVE_FRONTEND` | `false` | O Flask também serve o frontend (um contêiner, uma URL) |
 | `LOG_FORMAT`, `LOG_LEVEL` | `text`, `INFO` | `LOG_FORMAT=json` imprime um objeto JSON por linha |
 
 O frontend encontra a API por meio de [`interface/config.js`](interface/config.js) (único lugar onde a URL da API é definida).
@@ -173,11 +175,15 @@ docker/                configuração do nginx e imagem do frontend
 - As respostas chegam inteiras e são "digitadas" no navegador; não há streaming.
 - O código do frontend não tem testes automatizados; foi verificado manualmente em um navegador.
 
+## Publicação
+
+A imagem Docker pode rodar como um único contêiner que serve API e frontend (`SERVE_FRONTEND=true`). Ela precisa de um host com disco persistente para o SQLite (por exemplo Fly.io, Render ou Railway), e uma demo pública deve usar `INVITE_CODE` e `DAILY_MESSAGE_LIMIT` para proteger o crédito da OpenAI. Veja o [guia de publicação](docs/deploy.pt-BR.md).
+
 ## Roadmap
 
 Ideias, não compromissos:
 
-- Hospedar o backend e publicar uma demo online.
+- Publicar uma demo online (veja o guia de publicação).
 - Revisar o conteúdo técnico do assistente com um profissional e manter o calendário de vacinação atualizado.
 - Recuperação de senha e o campo "localidade" previsto no design original do cadastro.
 - Respostas em streaming.
