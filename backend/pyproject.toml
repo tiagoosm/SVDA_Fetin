@@ -1,0 +1,21 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/__main__.py"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+# pyflakes, pycodestyle, isort, pyupgrade, bugbear, simplify
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "conftest"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_migration.py" = ["E501"]  # legacy SQL fixtures
