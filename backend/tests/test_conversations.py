@@ -107,7 +107,8 @@ def test_conversation_list_shows_title_and_preview(client):
     send(client, "Outra conversa")
     conversations = client.get("/conversations").get_json()["conversations"]
     assert conversations[0]["title"] == "Outra conversa..."
-    assert conversations[1]["title"].endswith("...") and len(conversations[1]["title"]) == 43
+    long_question = "Qual a melhor dieta para vacas de leite em lactação no período da seca?"
+    assert conversations[1]["title"] == long_question[:40].rstrip() + "..."  # no space before the dots
     assert conversations[1]["preview"] == "Resposta de teste..."
     assert set(conversations[0]) == {"id", "title", "preview", "created_at"}
 

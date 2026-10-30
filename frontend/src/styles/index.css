@@ -1,0 +1,96 @@
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource/figtree/400.css';
+@import '@fontsource/figtree/500.css';
+@import '@fontsource/figtree/600.css';
+@import '@fontsource/figtree/700.css';
+@import 'tailwindcss';
+
+/* Design tokens: the "Pasto" identity (contour lines, moss green, sun yellow). */
+@theme {
+  --font-display: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+
+  --color-field: #eff4e9;
+  --color-ink: #1b2a21;
+  --color-muted: #55665b;
+  --color-line: #c9d6c2;
+  --color-moss: #22402e;
+  --color-moss-light: #2c5039;
+  --color-grass: #5f8f46;
+  --color-sun: #f2b84b;
+  --color-sky: #dceaee;
+  --color-mist: #b9cdb9;
+
+  --animate-dot: dot 1.2s ease-in-out infinite;
+  @keyframes dot {
+    0%,
+    80%,
+    100% {
+      opacity: 0.35;
+      transform: translateY(0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-field font-sans text-ink antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-moss);
+    outline-offset: 3px;
+  }
+  .on-dark :focus-visible {
+    outline-color: var(--color-sun);
+  }
+}
+
+@layer components {
+  /* Text inputs and selects */
+  .field-control {
+    @apply min-h-13 w-full rounded-2xl border-2 border-line bg-white px-4 text-base text-ink;
+    @apply placeholder:text-muted/70 focus:border-moss focus-visible:outline-sun;
+  }
+  .field-select {
+    @apply appearance-none pr-11;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2322402e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 18px;
+  }
+
+  /* Markdown rendered inside assistant answers */
+  .markdown > * + * {
+    margin-top: 0.7em;
+  }
+  .markdown ul {
+    @apply list-disc pl-5;
+  }
+  .markdown ol {
+    @apply list-decimal pl-5;
+  }
+  .markdown li + li {
+    margin-top: 0.2em;
+  }
+  .markdown strong {
+    @apply font-bold;
+  }
+  .markdown a {
+    @apply underline underline-offset-2;
+  }
+  .markdown h1,
+  .markdown h2,
+  .markdown h3 {
+    @apply font-display font-bold leading-snug;
+  }
+  .markdown code {
+    @apply rounded bg-sky px-1 py-0.5 text-[0.9em];
+  }
+}

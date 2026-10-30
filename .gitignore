@@ -7,6 +7,7 @@
 *.db
 *.sqlite
 *.sqlite3
+backend/data/
 
 # Python
 __pycache__/
@@ -21,10 +22,16 @@ venv/
 .venv/
 env/
 
+# Node
+node_modules/
+frontend/dist/
+frontend/coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+
 # Editors / OS
 .vscode/
 .idea/
 .DS_Store
-
-# Logs
-*.log

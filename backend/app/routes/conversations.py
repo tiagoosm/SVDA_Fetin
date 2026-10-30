@@ -19,8 +19,8 @@ def list_conversations():
         conversations.append(
             {
                 "id": conversation_id,
-                "title": (question[:40] + "...") if question else "Conversa",
-                "preview": (answer[:80] + "...") if answer else "",
+                "title": (question[:40].rstrip() + "...") if question else "Conversa",
+                "preview": (answer[:80].rstrip() + "...") if answer else "",
                 "created_at": created_at,
             }
         )
